@@ -1,0 +1,1 @@
+import { sendMail } from './server/utils/mailer'; sendMail('jaswantharavapalli@gmail.com', 'Test', 'Test Content').then(console.log).catch(console.error);

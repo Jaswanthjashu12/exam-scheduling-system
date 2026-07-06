@@ -1,0 +1,15 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local SQLite databases, journals, and runtime logs
+data/*.db*
+data/*.log
+
+# Local testing and scratch directories
+scratch/
