@@ -13,3 +13,6 @@ data/*.log
 
 # Local testing and scratch directories
 scratch/
+
+# Firebase service account key
+firebase-key.json

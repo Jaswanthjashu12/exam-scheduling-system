@@ -19,15 +19,15 @@ import { ScheduleEntry } from '../../src/types';
 const router = Router();
 
 // POST /api/optimizer/run
-router.post('/run', (req, res, next) => {
+router.post('/run', async (req, res, next) => {
   try {
     const { strategy, maxIterations, strictBranchSeparation } = req.body;
     
     // Fetch all current database data
-    const courses = getAllCourses();
-    const students = getAllStudents();
-    const rooms = getAllRooms();
-    const invigilators = getAllInvigilators();
+    const courses = await getAllCourses();
+    const students = await getAllStudents();
+    const rooms = await getAllRooms();
+    const invigilators = await getAllInvigilators();
 
     let entries: ScheduleEntry[] = [];
     const isStrict = !!strictBranchSeparation;
@@ -50,7 +50,7 @@ router.post('/run', (req, res, next) => {
     }
 
     // Save generated schedule to DB
-    bulkReplaceScheduleEntries(entries);
+    await bulkReplaceScheduleEntries(entries);
 
     // Evaluate the final schedule
     const weights = { ...DEFAULT_WEIGHTS, strictBranchSeparation: isStrict };
@@ -63,13 +63,13 @@ router.post('/run', (req, res, next) => {
 });
 
 // POST /api/optimizer/evaluate
-router.post('/evaluate', (req, res, next) => {
+router.post('/evaluate', async (req, res, next) => {
   try {
-    const courses = getAllCourses();
-    const students = getAllStudents();
-    const rooms = getAllRooms();
-    const invigilators = getAllInvigilators();
-    const entries = getAllScheduleEntries();
+    const courses = await getAllCourses();
+    const students = await getAllStudents();
+    const rooms = await getAllRooms();
+    const invigilators = await getAllInvigilators();
+    const entries = await getAllScheduleEntries();
 
     const metrics = evaluateSchedule(entries, courses, students, rooms, invigilators, DEFAULT_WEIGHTS);
     const conflicts = getConflictReport(entries, courses, students, rooms, invigilators, DEFAULT_WEIGHTS);

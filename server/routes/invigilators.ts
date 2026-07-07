@@ -5,9 +5,9 @@ import { Invigilator } from '../../src/types';
 const router = Router();
 
 // GET /api/invigilators
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const invigilators = getAllInvigilators();
+    const invigilators = await getAllInvigilators();
     res.json(invigilators);
   } catch (err) {
     next(err);
@@ -15,9 +15,9 @@ router.get('/', (req, res, next) => {
 });
 
 // GET /api/invigilators/:id
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const invigilator = getInvigilator(req.params.id);
+    const invigilator = await getInvigilator(req.params.id);
     if (!invigilator) {
       return res.status(404).json({ error: 'Invigilator not found' });
     }
@@ -28,7 +28,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/invigilators
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { id, name, email, department, availability, maxWorkload } = req.body;
     const dept = department || 'General';
@@ -45,7 +45,7 @@ router.post('/', (req, res, next) => {
       maxWorkload
     };
 
-    const created = createInvigilator(newInvigilator);
+    const created = await createInvigilator(newInvigilator);
     res.status(201).json(created);
   } catch (err: any) {
     if (err.message && err.message.includes('UNIQUE constraint failed')) {
@@ -56,10 +56,10 @@ router.post('/', (req, res, next) => {
 });
 
 // PUT /api/invigilators/:id
-router.put('/:id', (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { name, email, department, availability, maxWorkload } = req.body;
-    const updated = updateInvigilator(req.params.id, { 
+    const updated = await updateInvigilator(req.params.id, { 
       name, 
       email, 
       department: department || 'General', 
@@ -76,9 +76,9 @@ router.put('/:id', (req, res, next) => {
 });
 
 // DELETE /api/invigilators/:id
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    deleteInvigilator(req.params.id);
+    await deleteInvigilator(req.params.id);
     res.status(204).end();
   } catch (err) {
     next(err);

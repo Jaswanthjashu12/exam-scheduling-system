@@ -35,8 +35,13 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 async function startServer() {
-  // Initialize SQLite Database
-  initDatabase();
+  // Initialize Firebase Database
+  try {
+    await initDatabase();
+    console.log('[Database] Database initialized and seeded successfully');
+  } catch (err: any) {
+    console.error('[Database] Failed to initialize database:', err.message);
+  }
 
   const app = express();
   const PORT = 3000;

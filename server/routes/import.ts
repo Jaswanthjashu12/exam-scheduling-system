@@ -72,7 +72,7 @@ function findBoolValue(row: any, aliases: string[], defaultVal: boolean): boolea
 // ==========================================
 // POST /api/import/students
 // ==========================================
-router.post('/students', upload.single('file'), (req, res, next) => {
+router.post('/students', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -85,16 +85,17 @@ router.post('/students', upload.single('file'), (req, res, next) => {
 
     // If replace mode, delete all existing students first
     if (mode === 'replace') {
-      const existing = getAllStudents();
+      const existing = await getAllStudents();
       for (const s of existing) {
-        deleteStudent(s.id);
+        await deleteStudent(s.id);
       }
     }
 
     const validAccommodations: AccommodationType[] = ['extra_time', 'separate_room', 'accessible', 'scribe'];
     const imported: Student[] = [];
     const errors: string[] = [];
-    const existingIds = new Set(mode === 'append' ? getAllStudents().map(s => s.id) : []);
+    const existingStudents = mode === 'append' ? await getAllStudents() : [];
+    const existingIds = new Set(existingStudents.map(s => s.id));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -109,7 +110,7 @@ router.post('/students', upload.single('file'), (req, res, next) => {
 
       if (!id) { errors.push(`Row ${rowNum}: Missing student ID`); continue; }
       if (!name) { errors.push(`Row ${rowNum}: Missing student name`); continue; }
-      if (existingIds.has(id)) { errors.push(`Row ${rowNum}: Duplicate ID '${id}' — skipped`); continue; }
+      if (existingIds.has(id.toUpperCase())) { errors.push(`Row ${rowNum}: Duplicate ID '${id}' — skipped`); continue; }
 
       // Parse courses: comma-separated or semicolon-separated
       const courses = coursesRaw
@@ -126,9 +127,9 @@ router.post('/students', upload.single('file'), (req, res, next) => {
       const student: Student = { id: id.toUpperCase(), name, email: email || undefined, courses, accommodations, year: year >= 1 && year <= 4 ? year : 1 };
 
       try {
-        createStudent(student);
+        await createStudent(student);
         imported.push(student);
-        existingIds.add(id);
+        existingIds.add(id.toUpperCase());
       } catch (err: any) {
         errors.push(`Row ${rowNum}: ${err.message || 'Failed to create student'}`);
       }
@@ -152,7 +153,7 @@ router.post('/students', upload.single('file'), (req, res, next) => {
 // ==========================================
 // POST /api/import/invigilators
 // ==========================================
-router.post('/invigilators', upload.single('file'), (req, res, next) => {
+router.post('/invigilators', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -164,15 +165,16 @@ router.post('/invigilators', upload.single('file'), (req, res, next) => {
     }
 
     if (mode === 'replace') {
-      const existing = getAllInvigilators();
+      const existing = await getAllInvigilators();
       for (const inv of existing) {
-        deleteInvigilator(inv.id);
+        await deleteInvigilator(inv.id);
       }
     }
 
     const imported: Invigilator[] = [];
     const errors: string[] = [];
-    const existingIds = new Set(mode === 'append' ? getAllInvigilators().map(i => i.id) : []);
+    const existingInvigilators = mode === 'append' ? await getAllInvigilators() : [];
+    const existingIds = new Set(existingInvigilators.map(i => i.id));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -187,7 +189,7 @@ router.post('/invigilators', upload.single('file'), (req, res, next) => {
 
       if (!id) { errors.push(`Row ${rowNum}: Missing invigilator ID`); continue; }
       if (!name) { errors.push(`Row ${rowNum}: Missing invigilator name`); continue; }
-      if (existingIds.has(id)) { errors.push(`Row ${rowNum}: Duplicate ID '${id}' — skipped`); continue; }
+      if (existingIds.has(id.toUpperCase())) { errors.push(`Row ${rowNum}: Duplicate ID '${id}' — skipped`); continue; }
 
       // Parse availability: comma-separated slot IDs
       const availability = availRaw
@@ -204,9 +206,9 @@ router.post('/invigilators', upload.single('file'), (req, res, next) => {
       };
 
       try {
-        createInvigilator(invig);
+        await createInvigilator(invig);
         imported.push(invig);
-        existingIds.add(id);
+        existingIds.add(id.toUpperCase());
       } catch (err: any) {
         errors.push(`Row ${rowNum}: ${err.message || 'Failed to create invigilator'}`);
       }
@@ -230,7 +232,7 @@ router.post('/invigilators', upload.single('file'), (req, res, next) => {
 // ==========================================
 // POST /api/import/courses
 // ==========================================
-router.post('/courses', upload.single('file'), (req, res, next) => {
+router.post('/courses', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -242,15 +244,16 @@ router.post('/courses', upload.single('file'), (req, res, next) => {
     }
 
     if (mode === 'replace') {
-      const existing = getAllCourses();
+      const existing = await getAllCourses();
       for (const c of existing) {
-        deleteCourse(c.id);
+        await deleteCourse(c.id);
       }
     }
 
     const imported: Course[] = [];
     const errors: string[] = [];
-    const existingIds = new Set(mode === 'append' ? getAllCourses().map(c => c.id) : []);
+    const existingCourses = mode === 'append' ? await getAllCourses() : [];
+    const existingIds = new Set(existingCourses.map(c => c.id));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -281,7 +284,7 @@ router.post('/courses', upload.single('file'), (req, res, next) => {
       };
 
       try {
-        createCourse(course);
+        await createCourse(course);
         imported.push(course);
         existingIds.add(id.toUpperCase());
       } catch (err: any) {
@@ -307,7 +310,7 @@ router.post('/courses', upload.single('file'), (req, res, next) => {
 // ==========================================
 // POST /api/import/rooms
 // ==========================================
-router.post('/rooms', upload.single('file'), (req, res, next) => {
+router.post('/rooms', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -319,15 +322,16 @@ router.post('/rooms', upload.single('file'), (req, res, next) => {
     }
 
     if (mode === 'replace') {
-      const existing = getAllRooms();
+      const existing = await getAllRooms();
       for (const r of existing) {
-        deleteRoom(r.id);
+        await deleteRoom(r.id);
       }
     }
 
     const imported: Room[] = [];
     const errors: string[] = [];
-    const existingIds = new Set(mode === 'append' ? getAllRooms().map(r => r.id) : []);
+    const existingRooms = mode === 'append' ? await getAllRooms() : [];
+    const existingIds = new Set(existingRooms.map(r => r.id));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -352,7 +356,7 @@ router.post('/rooms', upload.single('file'), (req, res, next) => {
       };
 
       try {
-        createRoom(room);
+        await createRoom(room);
         imported.push(room);
         existingIds.add(id.toUpperCase());
       } catch (err: any) {

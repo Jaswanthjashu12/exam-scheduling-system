@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllScheduleEntries, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, bulkReplaceScheduleEntries, clearScheduleEntries, getStudent, db } from '../db';
+import { getAllScheduleEntries, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, bulkReplaceScheduleEntries, clearScheduleEntries, getStudent, getStudentsByCourse } from '../db';
 import { ScheduleEntry } from '../../src/types';
 import { getInvigilator, getAllInvigilators } from '../db';
 import { sendMail } from '../utils/mailer';
@@ -7,9 +7,9 @@ import { sendMail } from '../utils/mailer';
 const router = Router();
 
 // GET /api/schedule
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const entries = getAllScheduleEntries();
+    const entries = await getAllScheduleEntries();
     res.json(entries);
   } catch (err) {
     next(err);
@@ -25,10 +25,10 @@ router.post('/', async (req, res, next) => {
     }
 
     const newEntry: ScheduleEntry = { id, courseId, timeslotId, roomId, invigilatorId };
-    const created = createScheduleEntry(newEntry);
+    const created = await createScheduleEntry(newEntry);
     // Send notification email without affecting response if it fails
     try {
-      const inv = getInvigilator(invigilatorId);
+      const inv = await getInvigilator(invigilatorId);
       if (inv?.email) {
         await sendMail(inv.email, 'Exam Assignment Notification', `You have been assigned to an exam at ${timeslotId} in room ${roomId}. Please be on time.`);
       }
@@ -48,10 +48,10 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const { courseId, timeslotId, roomId, invigilatorId } = req.body;
-    const updated = updateScheduleEntry(req.params.id, { courseId, timeslotId, roomId, invigilatorId });
+    const updated = await updateScheduleEntry(req.params.id, { courseId, timeslotId, roomId, invigilatorId });
     // Notify invigilator of update, ignore errors
     try {
-      const inv = getInvigilator(invigilatorId);
+      const inv = await getInvigilator(invigilatorId);
       if (inv?.email) {
         await sendMail(inv.email, 'Exam Assignment Updated', `Your exam assignment has been updated to ${timeslotId} in room ${roomId}. Please be on time.`);
       }
@@ -68,9 +68,9 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /api/schedule/clear (Note: using DELETE /clear or mounting as subroute)
-router.delete('/clear', (req, res, next) => {
+router.delete('/clear', async (req, res, next) => {
   try {
-    clearScheduleEntries();
+    await clearScheduleEntries();
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -78,9 +78,9 @@ router.delete('/clear', (req, res, next) => {
 });
 
 // DELETE /api/schedule/:id
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    deleteScheduleEntry(req.params.id);
+    await deleteScheduleEntry(req.params.id);
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -88,13 +88,13 @@ router.delete('/:id', (req, res, next) => {
 });
 
 // POST /api/schedule/bulk
-router.post('/bulk', (req, res, next) => {
+router.post('/bulk', async (req, res, next) => {
   try {
     const entries = req.body as ScheduleEntry[];
     if (!Array.isArray(entries)) {
       return res.status(400).json({ error: 'Body must be an array of schedule entries' });
     }
-    const replaced = bulkReplaceScheduleEntries(entries);
+    const replaced = await bulkReplaceScheduleEntries(entries);
     res.json(replaced);
   } catch (err) {
     next(err);
@@ -116,18 +116,20 @@ router.post('/:id/notify', async (req, res, next) => {
     const entryId = req.params.id;
     logToFile(`[Notify API] Request to notify for entryId: "${entryId}"`);
     // fetch the schedule entry (reuse db function)
-    const entry = getAllScheduleEntries().find(e => e.id === entryId);
+    const entries = await getAllScheduleEntries();
+    const entry = entries.find(e => e.id === entryId);
     if (!entry) {
-      logToFile(`[Notify API] Entry not found in DB. DB has: ${getAllScheduleEntries().map(e => e.id).join(', ')}`);
+      logToFile(`[Notify API] Entry not found in DB. DB has: ${entries.map(e => e.id).join(', ')}`);
       return res.status(404).json({ error: 'Schedule entry not found' });
     }
     logToFile(`[Notify API] Entry found. InvigilatorId: "${entry.invigilatorId}"`);
     if (!entry.invigilatorId) {
       return res.status(400).json({ error: 'No invigilator assigned to this exam. Please assign an invigilator first.' });
     }
-    const inv = getInvigilator(entry.invigilatorId);
+    const inv = await getInvigilator(entry.invigilatorId);
     if (!inv) {
-      logToFile(`[Notify API] Invigilator "${entry.invigilatorId}" not found in DB! Existing DB invigilators: ${getAllInvigilators().map(i => i.id).join(', ')}`);
+      const invigilators = await getAllInvigilators();
+      logToFile(`[Notify API] Invigilator "${entry.invigilatorId}" not found in DB! Existing DB invigilators: ${invigilators.map(i => i.id).join(', ')}`);
       return res.status(404).json({ error: 'Assigned invigilator not found in the database.' });
     }
     if (inv.email) {
@@ -167,7 +169,7 @@ router.post('/send-seating-plan', async (req, res, next) => {
       return res.status(400).json({ error: 'invigilatorId, timeslotId, roomId, and seatingGrid are required' });
     }
 
-    const inv = getInvigilator(invigilatorId);
+    const inv = await getInvigilator(invigilatorId);
     if (!inv) {
       return res.status(404).json({ error: 'Invigilator not found' });
     }
@@ -546,12 +548,7 @@ router.post('/notify-exam-assignment', async (req, res, next) => {
     }
 
     // Fetch students enrolled in this course who have an email
-    const rows = db.prepare(`
-      SELECT s.id, s.name, s.email
-      FROM students s
-      INNER JOIN student_courses sc ON sc.student_id = s.id
-      WHERE sc.course_id = ? AND s.email IS NOT NULL AND s.email != ''
-    `).all(courseId) as { id: string; name: string; email: string }[];
+    const rows = await getStudentsByCourse(courseId);
 
     if (rows.length === 0) {
       return res.status(200).json({

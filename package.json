@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "db:backup": "tsx backup-db.ts",
-    "db:reset": "tsx reset-db.ts"
+    "db:reset": "tsx reset-db.ts",
+    "db:reset:firebase": "tsx reset-firebase.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -20,6 +21,7 @@
     "better-sqlite3": "^12.10.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "firebase-admin": "^14.1.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.546.0",

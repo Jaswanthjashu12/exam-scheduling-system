@@ -5,9 +5,9 @@ import { Room } from '../../src/types';
 const router = Router();
 
 // GET /api/rooms
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const rooms = getAllRooms();
+    const rooms = await getAllRooms();
     res.json(rooms);
   } catch (err) {
     next(err);
@@ -15,9 +15,9 @@ router.get('/', (req, res, next) => {
 });
 
 // GET /api/rooms/:id
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const room = getRoom(req.params.id);
+    const room = await getRoom(req.params.id);
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
     }
@@ -28,7 +28,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/rooms
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { id, name, capacity, building, accessible } = req.body;
     if (!id || !name || capacity === undefined || !building) {
@@ -43,7 +43,7 @@ router.post('/', (req, res, next) => {
       accessible: !!accessible
     };
 
-    const created = createRoom(newRoom);
+    const created = await createRoom(newRoom);
     res.status(201).json(created);
   } catch (err: any) {
     if (err.message && err.message.includes('UNIQUE constraint failed')) {
@@ -54,10 +54,10 @@ router.post('/', (req, res, next) => {
 });
 
 // PUT /api/rooms/:id
-router.put('/:id', (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { name, capacity, building, accessible } = req.body;
-    const updated = updateRoom(req.params.id, { name, capacity, building, accessible });
+    const updated = await updateRoom(req.params.id, { name, capacity, building, accessible });
     res.json(updated);
   } catch (err: any) {
     if (err.message && err.message.includes('not found')) {
@@ -68,9 +68,9 @@ router.put('/:id', (req, res, next) => {
 });
 
 // DELETE /api/rooms/:id
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    deleteRoom(req.params.id);
+    await deleteRoom(req.params.id);
     res.status(204).end();
   } catch (err) {
     next(err);

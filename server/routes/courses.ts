@@ -5,9 +5,9 @@ import { Course } from '../../src/types';
 const router = Router();
 
 // GET /api/courses
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const courses = getAllCourses();
+    const courses = await getAllCourses();
     res.json(courses);
   } catch (err) {
     next(err);
@@ -15,9 +15,9 @@ router.get('/', (req, res, next) => {
 });
 
 // GET /api/courses/:id
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const course = getCourse(req.params.id);
+    const course = await getCourse(req.params.id);
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
     }
@@ -28,7 +28,7 @@ router.get('/:id', (req, res, next) => {
 });
 
 // POST /api/courses
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { id, name, duration, priority, branch, year } = req.body;
     if (!id || !name) {
@@ -54,7 +54,7 @@ router.post('/', (req, res, next) => {
       year: year ? Number(year) : 1
     };
 
-    const created = createCourse(newCourse);
+    const created = await createCourse(newCourse);
     res.status(201).json(created);
   } catch (err: any) {
     if (err.message && err.message.includes('UNIQUE constraint failed')) {
@@ -65,7 +65,7 @@ router.post('/', (req, res, next) => {
 });
 
 // PUT /api/courses/:id
-router.put('/:id', (req, res, next) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { name, duration, priority, branch, year } = req.body;
     
@@ -74,7 +74,7 @@ router.put('/:id', (req, res, next) => {
       return res.status(400).json({ error: 'year must be between 1 and 4' });
     }
 
-    const updated = updateCourse(req.params.id, { name, duration, priority, branch, year: year ? Number(year) : undefined });
+    const updated = await updateCourse(req.params.id, { name, duration, priority, branch, year: year ? Number(year) : undefined });
     res.json(updated);
   } catch (err: any) {
     if (err.message && err.message.includes('not found')) {
@@ -85,9 +85,9 @@ router.put('/:id', (req, res, next) => {
 });
 
 // DELETE /api/courses/:id
-router.delete('/:id', (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    deleteCourse(req.params.id);
+    await deleteCourse(req.params.id);
     res.status(204).end();
   } catch (err) {
     next(err);
