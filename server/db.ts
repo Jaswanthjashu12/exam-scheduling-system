@@ -1,25 +1,56 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { Course, Room, Student, Invigilator, ScheduleEntry, AccommodationType } from '../src/types';
 
-// Ensure data directory exists
-const getDbDir = () => {
-  if (typeof __dirname !== 'undefined') {
-    return path.resolve(__dirname, '..', 'data');
-  }
-  const meta = import.meta as any;
-  if (meta && meta.dirname) {
-    return path.resolve(meta.dirname, '..', 'data');
-  }
-  return path.resolve(process.cwd(), 'data');
-};
-const dbDir = getDbDir();
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+// Ensure database file is opened cleanly with a fallback to the system temporary directory if folder is read-only
+const getDbPath = () => {
+  const projectDbDir = typeof __dirname !== 'undefined'
+    ? path.resolve(__dirname, '..', 'data')
+    : (import.meta as any).dirname
+      ? path.resolve((import.meta as any).dirname, '..', 'data')
+      : path.resolve(process.cwd(), 'data');
 
-const dbPath = path.join(dbDir, 'exam_scheduler.db');
+  const projectDbPath = path.join(projectDbDir, 'exam_scheduler.db');
+
+  try {
+    // Try creating the project data directory if not exists
+    if (!fs.existsSync(projectDbDir)) {
+      fs.mkdirSync(projectDbDir, { recursive: true });
+    }
+    // Test if we can open/write to the database file in the project directory
+    const testDb = new Database(projectDbPath);
+    testDb.close();
+    return projectDbPath;
+  } catch (err: any) {
+    console.warn(`[SQLite] Failed to write database in project folder: ${err.message}. Falling back to system temporary directory.`);
+    
+    // Fallback to system temp folder
+    const tempDbDir = path.resolve(os.tmpdir(), 'exam_scheduler_data');
+    if (!fs.existsSync(tempDbDir)) {
+      fs.mkdirSync(tempDbDir, { recursive: true });
+    }
+    const tempDbPath = path.join(tempDbDir, 'exam_scheduler.db');
+
+    // Copy seeded database from project directory to temp directory if temp file doesn't exist
+    if (!fs.existsSync(tempDbPath) && fs.existsSync(projectDbPath)) {
+      try {
+        fs.copyFileSync(projectDbPath, tempDbPath);
+        // Also copy wal/shm if they exist
+        const projectWal = projectDbPath + '-wal';
+        const tempWal = tempDbPath + '-wal';
+        if (fs.existsSync(projectWal)) fs.copyFileSync(projectWal, tempWal);
+        console.log(`[SQLite] Seeded database copied to: ${tempDbPath}`);
+      } catch (copyErr: any) {
+        console.error(`[SQLite] Failed to copy seeded database to temp path: ${copyErr.message}`);
+      }
+    }
+    return tempDbPath;
+  }
+};
+
+const dbPath = getDbPath();
 export const db = new Database(dbPath);
 
 // Enable foreign keys and WAL mode for better concurrent read/write performance
