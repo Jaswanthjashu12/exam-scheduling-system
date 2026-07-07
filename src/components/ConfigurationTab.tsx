@@ -1250,7 +1250,13 @@ export default function ConfigurationTab({
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Academic Year</label>
                   <select
                     value={newStudentYear}
-                    onChange={(e) => setNewStudentYear(Number(e.target.value))}
+                    onChange={(e) => {
+                      const newYear = Number(e.target.value);
+                      setNewStudentYear(newYear);
+                      // Filter selectedCourses to only keep courses belonging to the new year
+                      const newYearCourseIds = courses.filter(c => (c.year || 1) === newYear).map(c => c.id);
+                      setSelectedCourses(prev => prev.filter(id => newYearCourseIds.includes(id)));
+                    }}
                     className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
                   >
                     <option value={1} className="bg-[#12151C]">Year 1 (Freshman)</option>
@@ -1264,50 +1270,64 @@ export default function ConfigurationTab({
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Enrolled Courses (Select at least 1)</label>
                   <div className="max-h-48 overflow-y-auto border border-slate-805 rounded-lg p-2.5 space-y-3 bg-[#12151C]">
-                    {Object.entries(courses.reduce((acc, c) => {
-                      const branch = c.branch || "General / Uncategorized";
-                      if (!acc[branch]) acc[branch] = [];
-                      acc[branch].push(c);
-                      return acc;
-                    }, {} as Record<string, typeof courses>)).map(([branch, branchCourses]) => (
-                      <div key={branch} className="space-y-1.5">
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 mb-1.5 flex justify-between items-center">
-                          {branch}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const allSelected = branchCourses.every(c => selectedCourses.includes(c.id));
-                              if (allSelected) {
-                                // Deselect all in this branch
-                                setSelectedCourses(selectedCourses.filter(id => !branchCourses.some(c => c.id === id)));
-                              } else {
-                                // Select all in this branch
-                                const newSelection = [...selectedCourses];
-                                branchCourses.forEach(c => {
-                                  if (!newSelection.includes(c.id)) newSelection.push(c.id);
-                                });
-                                setSelectedCourses(newSelection);
-                              }
-                            }}
-                            className="text-[9px] text-blue-400 hover:text-blue-300 cursor-pointer capitalize font-semibold bg-blue-900/20 px-1.5 py-0.5 rounded"
-                          >
-                            {branchCourses.every(c => selectedCourses.includes(c.id)) ? "Deselect All" : "Select All"}
-                          </button>
+                    {(() => {
+                      const yearCourses = courses.filter(c => (c.year || 1) === newStudentYear);
+                      const grouped = yearCourses.reduce((acc, c) => {
+                        const branch = c.branch || "General / Uncategorized";
+                        if (!acc[branch]) acc[branch] = [];
+                        acc[branch].push(c);
+                        return acc;
+                      }, {} as Record<string, typeof courses>);
+                      
+                      const entries = Object.entries(grouped);
+                      if (entries.length === 0) {
+                        return (
+                          <div className="text-center text-slate-500 py-6 text-xs italic">
+                            No courses found for Year {newStudentYear}
+                          </div>
+                        );
+                      }
+                      
+                      return entries.map(([branch, branchCourses]) => (
+                        <div key={branch} className="space-y-1.5">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 mb-1.5 flex justify-between items-center">
+                            {branch}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const allSelected = branchCourses.every(c => selectedCourses.includes(c.id));
+                                if (allSelected) {
+                                  // Deselect all in this branch
+                                  setSelectedCourses(selectedCourses.filter(id => !branchCourses.some(c => c.id === id)));
+                                } else {
+                                  // Select all in this branch
+                                  const newSelection = [...selectedCourses];
+                                  branchCourses.forEach(c => {
+                                    if (!newSelection.includes(c.id)) newSelection.push(c.id);
+                                  });
+                                  setSelectedCourses(newSelection);
+                                }
+                              }}
+                              className="text-[9px] text-blue-400 hover:text-blue-300 cursor-pointer capitalize font-semibold bg-blue-900/20 px-1.5 py-0.5 rounded"
+                            >
+                              {branchCourses.every(c => selectedCourses.includes(c.id)) ? "Deselect All" : "Select All"}
+                            </button>
+                          </div>
+                          {branchCourses.map((course) => (
+                            <label key={course.id} className="flex items-center gap-2 cursor-pointer text-xs ml-1 hover:bg-slate-800/40 p-1 rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={selectedCourses.includes(course.id)}
+                                onChange={() => toggleStudentCourse(course.id)}
+                                className="rounded border-slate-700 bg-slate-900 text-blue-550 focus:ring-blue-550 h-3.5 w-3.5 shrink-0"
+                              />
+                              <span className="font-mono font-semibold text-white shrink-0">{course.id}</span>
+                              <span className="text-slate-400 truncate">- {course.name}</span>
+                            </label>
+                          ))}
                         </div>
-                        {branchCourses.map((course) => (
-                          <label key={course.id} className="flex items-center gap-2 cursor-pointer text-xs ml-1 hover:bg-slate-800/40 p-1 rounded transition">
-                            <input
-                              type="checkbox"
-                              checked={selectedCourses.includes(course.id)}
-                              onChange={() => toggleStudentCourse(course.id)}
-                              className="rounded border-slate-700 bg-slate-900 text-blue-550 focus:ring-blue-550 h-3.5 w-3.5 shrink-0"
-                            />
-                            <span className="font-mono font-semibold text-white shrink-0">{course.id}</span>
-                            <span className="text-slate-400 truncate">- {course.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </div>
 
