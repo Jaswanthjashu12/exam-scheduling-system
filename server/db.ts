@@ -4,9 +4,17 @@ import fs from 'fs';
 import { Course, Room, Student, Invigilator, ScheduleEntry, AccommodationType } from '../src/types';
 
 // Ensure data directory exists
-const dbDir = import.meta.dirname
-  ? path.resolve(import.meta.dirname, '..', 'data')
-  : path.resolve(process.cwd(), 'data');
+const getDbDir = () => {
+  if (typeof __dirname !== 'undefined') {
+    return path.resolve(__dirname, '..', 'data');
+  }
+  const meta = import.meta as any;
+  if (meta && meta.dirname) {
+    return path.resolve(meta.dirname, '..', 'data');
+  }
+  return path.resolve(process.cwd(), 'data');
+};
+const dbDir = getDbDir();
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
