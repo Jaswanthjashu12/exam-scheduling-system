@@ -9,6 +9,7 @@ export interface Course {
   duration: number; // in minutes
   priority: "High" | "Medium" | "Low";
   branch?: string; // Academic branch/department of study
+  year?: number; // Academic year (1, 2, 3, or 4)
 }
 
 export interface Student {
@@ -17,6 +18,7 @@ export interface Student {
   email?: string;
   courses: string[]; // Course IDs
   accommodations: AccommodationType[];
+  year?: number; // Academic year (1, 2, 3, or 4)
 }
 
 export type AccommodationType = 

@@ -62,7 +62,9 @@ export default function ConfigurationTab({
   const [newCourseDuration, setNewCourseDuration] = useState(120);
   const [newCoursePriority, setNewCoursePriority] = useState<"High" | "Medium" | "Low">("Medium");
   const [newCourseBranch, setNewCourseBranch] = useState("");
+  const [newCourseYear, setNewCourseYear] = useState<number>(1);
   const [courseFilterBranch, setCourseFilterBranch] = useState("all");
+  const [courseFilterYear, setCourseFilterYear] = useState<string>("all");
 
   // New academic branch inputs
   const [newBranchInput, setNewBranchInput] = useState("");
@@ -78,8 +80,10 @@ export default function ConfigurationTab({
   const [newStudentId, setNewStudentId] = useState("");
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentEmail, setNewStudentEmail] = useState("");
+  const [newStudentYear, setNewStudentYear] = useState<number>(1);
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [selectedAccs, setSelectedAccs] = useState<AccommodationType[]>([]);
+  const [studentFilterYear, setStudentFilterYear] = useState<string>("all");
 
   // New invigilator input status
   const [newInvigId, setNewInvigId] = useState("");
@@ -171,6 +175,7 @@ export default function ConfigurationTab({
     setNewCourseDuration(course.duration);
     setNewCoursePriority(course.priority);
     setNewCourseBranch(course.branch || "");
+    setNewCourseYear(course.year || 1);
     window.scrollTo({ top: 350, behavior: "smooth" });
   };
 
@@ -179,6 +184,7 @@ export default function ConfigurationTab({
     setNewCourseId("");
     setNewCourseName("");
     setNewCourseBranch("");
+    setNewCourseYear(1);
   };
 
   const handleEditRoomClick = (room: Room) => {
@@ -204,6 +210,7 @@ export default function ConfigurationTab({
     setNewStudentEmail(student.email || "");
     setSelectedCourses(student.courses);
     setSelectedAccs(student.accommodations);
+    setNewStudentYear(student.year || 1);
     window.scrollTo({ top: 350, behavior: "smooth" });
   };
 
@@ -214,6 +221,7 @@ export default function ConfigurationTab({
     setNewStudentEmail("");
     setSelectedCourses([]);
     setSelectedAccs([]);
+    setNewStudentYear(1);
   };
 
   const handleEditInvigilatorClick = (invig: Invigilator) => {
@@ -273,11 +281,13 @@ export default function ConfigurationTab({
         duration: Number(newCourseDuration),
         priority: newCoursePriority,
         branch: newCourseBranch || branches[0] || "General Academic",
+        year: Number(newCourseYear),
       } : c));
       setEditingCourseId(null);
       setNewCourseId("");
       setNewCourseName("");
       setNewCourseBranch("");
+      setNewCourseYear(1);
     } else {
       if (courses.some((c) => c.id === newCourseId)) {
         alert("A course with this ID already exists.");
@@ -289,11 +299,13 @@ export default function ConfigurationTab({
         duration: Number(newCourseDuration),
         priority: newCoursePriority,
         branch: newCourseBranch || branches[0] || "General Academic",
+        year: Number(newCourseYear),
       };
       setCourses([...courses, course]);
       setNewCourseId("");
       setNewCourseName("");
       setNewCourseBranch("");
+      setNewCourseYear(1);
     }
   };
 
@@ -304,6 +316,7 @@ export default function ConfigurationTab({
       setNewCourseId("");
       setNewCourseName("");
       setNewCourseBranch("");
+      setNewCourseYear(1);
     }
   };
 
@@ -360,6 +373,7 @@ export default function ConfigurationTab({
         email: newStudentEmail.trim() || undefined,
         courses: selectedCourses,
         accommodations: selectedAccs,
+        year: Number(newStudentYear),
       } : s));
       setEditingStudentId(null);
       setNewStudentId("");
@@ -367,6 +381,7 @@ export default function ConfigurationTab({
       setNewStudentEmail("");
       setSelectedCourses([]);
       setSelectedAccs([]);
+      setNewStudentYear(1);
     } else {
       if (students.some((s) => s.id === newStudentId)) {
         alert("A student with this ID already exists.");
@@ -378,6 +393,7 @@ export default function ConfigurationTab({
         email: newStudentEmail.trim() || undefined,
         courses: selectedCourses,
         accommodations: selectedAccs,
+        year: Number(newStudentYear),
       };
       setStudents([...students, student]);
       setNewStudentId("");
@@ -385,6 +401,7 @@ export default function ConfigurationTab({
       setNewStudentEmail("");
       setSelectedCourses([]);
       setSelectedAccs([]);
+      setNewStudentYear(1);
     }
   };
 
@@ -397,6 +414,7 @@ export default function ConfigurationTab({
       setNewStudentEmail("");
       setSelectedCourses([]);
       setSelectedAccs([]);
+      setNewStudentYear(1);
     }
   };
 
@@ -843,6 +861,19 @@ export default function ConfigurationTab({
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Academic Year</label>
+                  <select
+                    value={newCourseYear}
+                    onChange={(e) => setNewCourseYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
+                  >
+                    <option value={1} className="bg-[#12151C]">Year 1 (Freshman)</option>
+                    <option value={2} className="bg-[#12151C]">Year 2 (Sophomore)</option>
+                    <option value={3} className="bg-[#12151C]">Year 3 (Junior)</option>
+                    <option value={4} className="bg-[#12151C]">Year 4 (Senior)</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-400 mb-1.5 font-semibold uppercase tracking-wide">Duration (mins)</label>
@@ -895,7 +926,7 @@ export default function ConfigurationTab({
               <div className="lg:col-span-2 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-850 pb-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Course Listings</h3>
+                    <h3 className="text-xs font-semibold text-slate-404 text-slate-400 uppercase tracking-wider">Active Course Listings</h3>
                     <select
                       value={courseFilterBranch}
                       onChange={(e) => setCourseFilterBranch(e.target.value)}
@@ -905,6 +936,17 @@ export default function ConfigurationTab({
                       {branches.map((b) => (
                         <option key={b} value={b}>{b}</option>
                       ))}
+                    </select>
+                    <select
+                      value={courseFilterYear}
+                      onChange={(e) => setCourseFilterYear(e.target.value)}
+                      className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="all">📅 View All Years</option>
+                      <option value="1">Year 1</option>
+                      <option value="2">Year 2</option>
+                      <option value="3">Year 3</option>
+                      <option value="4">Year 4</option>
                     </select>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-[11px]">
@@ -936,6 +978,7 @@ export default function ConfigurationTab({
                         <th className="px-4 py-3">Course Code</th>
                         <th className="px-4 py-3">Name</th>
                         <th className="px-4 py-3">Branch</th>
+                        <th className="px-4 py-3">Year</th>
                         <th className="px-4 py-3">Duration</th>
                         <th className="px-4 py-3">Priority</th>
                         <th className="px-4 py-3">Enrollments</th>
@@ -944,15 +987,17 @@ export default function ConfigurationTab({
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-xs">
                       {(() => {
-                        const filteredCourses = courseFilterBranch === "all"
-                          ? courses
-                          : courses.filter((c) => c.branch === courseFilterBranch);
+                        const filteredCourses = courses.filter((c) => {
+                          const matchesBranch = courseFilterBranch === "all" || c.branch === courseFilterBranch;
+                          const matchesYear = courseFilterYear === "all" || String(c.year || 1) === courseFilterYear;
+                          return matchesBranch && matchesYear;
+                        });
 
                         if (filteredCourses.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                                No courses found for the selected branch. Change filter or add a course!
+                              <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                                No courses found matching the active filters. Change filter or add a course!
                               </td>
                             </tr>
                           );
@@ -967,6 +1012,11 @@ export default function ConfigurationTab({
                               <td className="px-4 py-2.5">
                                 <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800 text-[10px] font-semibold">
                                   {course.branch || "General Academic"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <span className="px-2 py-0.5 rounded bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 text-[10px] font-semibold">
+                                  Year {course.year || 1}
                                 </span>
                               </td>
                               <td className="px-4 py-2.5 text-slate-400">{course.duration} minutes</td>
@@ -1196,6 +1246,19 @@ export default function ConfigurationTab({
                     className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Academic Year</label>
+                  <select
+                    value={newStudentYear}
+                    onChange={(e) => setNewStudentYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
+                  >
+                    <option value={1} className="bg-[#12151C]">Year 1 (Freshman)</option>
+                    <option value={2} className="bg-[#12151C]">Year 2 (Sophomore)</option>
+                    <option value={3} className="bg-[#12151C]">Year 3 (Junior)</option>
+                    <option value={4} className="bg-[#12151C]">Year 4 (Senior)</option>
+                  </select>
+                </div>
                 
                 {/* Course select list */}
                 <div>
@@ -1295,7 +1358,20 @@ export default function ConfigurationTab({
               {/* Grid or Table list */}
               <div className="lg:col-span-2 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-medium text-slate-404 text-slate-400">Active Enrolled Students</h3>
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xs font-medium text-slate-404 text-slate-400">Active Enrolled Students</h3>
+                    <select
+                      value={studentFilterYear}
+                      onChange={(e) => setStudentFilterYear(e.target.value)}
+                      className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="all">📅 View All Years</option>
+                      <option value="1">Year 1</option>
+                      <option value="2">Year 2</option>
+                      <option value="3">Year 3</option>
+                      <option value="4">Year 4</option>
+                    </select>
+                  </div>
                   <button onClick={() => openImportModal('students')} className="text-emerald-400 hover:text-emerald-300 cursor-pointer font-semibold flex items-center gap-1 select-none bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition hover:bg-emerald-500/15 text-[11px]">
                     <Upload className="w-3 h-3" /> Import Excel
                   </button>
@@ -1306,6 +1382,7 @@ export default function ConfigurationTab({
                       <tr className="bg-slate-950/40 text-slate-400 font-medium text-xs border-b border-slate-800">
                         <th className="px-4 py-3">Student ID</th>
                         <th className="px-4 py-3">Name</th>
+                        <th className="px-4 py-3">Year</th>
                         <th className="px-4 py-3">Email</th>
                         <th className="px-4 py-3">Enrolled Exam Classes</th>
                         <th className="px-4 py-3">Special Accommodations</th>
@@ -1313,28 +1390,48 @@ export default function ConfigurationTab({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-xs text-slate-300">
-                      {students.map((student) => (
-                        <tr key={student.id} className="hover:bg-slate-800/10">
-                          <td className="px-4 py-2.5 font-mono font-semibold text-white">{student.id}</td>
-                          <td className="px-4 py-2.5 font-medium text-slate-200">{student.name}</td>
-                          <td className="px-4 py-2.5 text-slate-400">
-                             {student.email
-                               ? <a href={`mailto:${student.email}`} className="text-blue-400 hover:text-blue-300 hover:underline transition">{student.email}</a>
-                               : <span className="text-slate-600 italic text-[11px]">—</span>
-                             }
-                           </td>
-                          <td className="px-4 py-2.5 font-medium">
-                            <div className="flex flex-wrap gap-1">
-                              {student.courses.map((c) => (
-                                <span key={c} className="px-2 py-0.5 rounded bg-slate-850 border border-slate-800 text-slate-300 font-mono text-[10px]">
-                                  {c}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex flex-wrap gap-1">
-                              {student.accommodations.map((acc) => (
+                      {(() => {
+                        const filteredStudents = studentFilterYear === "all"
+                          ? students
+                          : students.filter((s) => String(s.year || 1) === studentFilterYear);
+
+                        if (filteredStudents.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                                No students found matching the selected filters.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filteredStudents.map((student) => (
+                          <tr key={student.id} className="hover:bg-slate-800/10">
+                            <td className="px-4 py-2.5 font-mono font-semibold text-white">{student.id}</td>
+                            <td className="px-4 py-2.5 font-medium text-slate-200">{student.name}</td>
+                            <td className="px-4 py-2.5">
+                              <span className="px-2 py-0.5 rounded bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 text-[10px] font-semibold">
+                                Year {student.year || 1}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-400">
+                               {student.email
+                                 ? <a href={`mailto:${student.email}`} className="text-blue-400 hover:text-blue-300 hover:underline transition">{student.email}</a>
+                                 : <span className="text-slate-600 italic text-[11px]">—</span>
+                               }
+                             </td>
+                            <td className="px-4 py-2.5 font-medium">
+                              <div className="flex flex-wrap gap-1">
+                                {student.courses.map((c) => (
+                                  <span key={c} className="px-2 py-0.5 rounded bg-slate-850 border border-slate-800 text-slate-300 font-mono text-[10px]">
+                                    {c}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex flex-wrap gap-1">
+                                {student.accommodations.map((acc) => (
                                 <span key={acc} className="px-2 py-0.5 rounded bg-amber-950/40 border border-amber-900/30 text-amber-400 font-semibold text-[10px]">
                                   {acc === "extra_time" ? "⏱️ Extra Time" :
                                    acc === "separate_room" ? "🤫 Separate Rm" :
@@ -1363,7 +1460,8 @@ export default function ConfigurationTab({
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      ));
+                    })()}
                     </tbody>
                   </table>
                 </div>

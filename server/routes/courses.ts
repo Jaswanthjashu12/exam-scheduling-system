@@ -30,7 +30,7 @@ router.get('/:id', (req, res, next) => {
 // POST /api/courses
 router.post('/', (req, res, next) => {
   try {
-    const { id, name, duration, priority, branch } = req.body;
+    const { id, name, duration, priority, branch, year } = req.body;
     if (!id || !name) {
       return res.status(400).json({ error: 'id and name are required' });
     }
@@ -40,12 +40,18 @@ router.post('/', (req, res, next) => {
       return res.status(400).json({ error: 'priority must be High, Medium, or Low' });
     }
 
+    // Validate year
+    if (year !== undefined && (isNaN(Number(year)) || Number(year) < 1 || Number(year) > 4)) {
+      return res.status(400).json({ error: 'year must be between 1 and 4' });
+    }
+
     const newCourse: Course = {
       id,
       name,
       duration: duration || 120,
       priority: priority || 'Medium',
-      branch
+      branch,
+      year: year ? Number(year) : 1
     };
 
     const created = createCourse(newCourse);
@@ -61,8 +67,14 @@ router.post('/', (req, res, next) => {
 // PUT /api/courses/:id
 router.put('/:id', (req, res, next) => {
   try {
-    const { name, duration, priority, branch } = req.body;
-    const updated = updateCourse(req.params.id, { name, duration, priority, branch });
+    const { name, duration, priority, branch, year } = req.body;
+    
+    // Validate year
+    if (year !== undefined && (isNaN(Number(year)) || Number(year) < 1 || Number(year) > 4)) {
+      return res.status(400).json({ error: 'year must be between 1 and 4' });
+    }
+
+    const updated = updateCourse(req.params.id, { name, duration, priority, branch, year: year ? Number(year) : undefined });
     res.json(updated);
   } catch (err: any) {
     if (err.message && err.message.includes('not found')) {

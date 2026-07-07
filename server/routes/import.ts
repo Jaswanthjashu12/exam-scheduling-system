@@ -105,6 +105,7 @@ router.post('/students', upload.single('file'), (req, res, next) => {
       const email = findValue(row, ['email', 'emailid', 'emailaddress', 'mail']);
       const coursesRaw = findValue(row, ['courses', 'enrolledcourses', 'subjects', 'coursecodes', 'courseids', 'examcourses']);
       const accsRaw = findValue(row, ['accommodations', 'specialaccommodations', 'accommodation', 'specialneeds', 'needs', 'disability']);
+      const year = findNumericValue(row, ['year', 'studentyear', 'academicyear', 'classyear', 'studyyear'], 1);
 
       if (!id) { errors.push(`Row ${rowNum}: Missing student ID`); continue; }
       if (!name) { errors.push(`Row ${rowNum}: Missing student name`); continue; }
@@ -122,7 +123,7 @@ router.post('/students', upload.single('file'), (req, res, next) => {
           .filter(a => validAccommodations.includes(a as AccommodationType)) as AccommodationType[]
         : [];
 
-      const student: Student = { id: id.toUpperCase(), name, email: email || undefined, courses, accommodations };
+      const student: Student = { id: id.toUpperCase(), name, email: email || undefined, courses, accommodations, year: year >= 1 && year <= 4 ? year : 1 };
 
       try {
         createStudent(student);
@@ -260,6 +261,7 @@ router.post('/courses', upload.single('file'), (req, res, next) => {
       const duration = findNumericValue(row, ['duration', 'durationminutes', 'durationmins', 'examduration', 'minutes', 'time'], 120);
       const priorityRaw = findValue(row, ['priority', 'importancelevel', 'importance', 'level']).toLowerCase();
       const branch = findValue(row, ['branch', 'department', 'dept', 'major', 'faculty', 'academicbranch']);
+      const year = findNumericValue(row, ['year', 'courseyear', 'academicyear', 'classyear', 'studyyear'], 1);
 
       if (!id) { errors.push(`Row ${rowNum}: Missing course ID`); continue; }
       if (!name) { errors.push(`Row ${rowNum}: Missing course name`); continue; }
@@ -274,7 +276,8 @@ router.post('/courses', upload.single('file'), (req, res, next) => {
         name,
         duration,
         priority,
-        branch: branch || undefined
+        branch: branch || undefined,
+        year: year >= 1 && year <= 4 ? year : 1
       };
 
       try {
@@ -383,9 +386,9 @@ router.get('/template/:type', (req, res) => {
   switch (type) {
     case 'students':
       sheetData = [
-        { 'Student ID': 'STU-001', 'Name': 'John Doe', 'Courses': 'CS-101, MATH-201', 'Accommodations': 'extra_time' },
-        { 'Student ID': 'STU-002', 'Name': 'Jane Smith', 'Courses': 'PHY-302, BIO-105', 'Accommodations': '' },
-        { 'Student ID': 'STU-003', 'Name': 'Alex Kumar', 'Courses': 'CS-101, PHY-302', 'Accommodations': 'separate_room, accessible' },
+        { 'Student ID': 'STU-001', 'Name': 'John Doe', 'Year': 1, 'Courses': 'CS-101, MATH-201', 'Accommodations': 'extra_time' },
+        { 'Student ID': 'STU-002', 'Name': 'Jane Smith', 'Year': 2, 'Courses': 'PHY-302, BIO-105', 'Accommodations': '' },
+        { 'Student ID': 'STU-003', 'Name': 'Alex Kumar', 'Year': 3, 'Courses': 'CS-101, PHY-302', 'Accommodations': 'separate_room, accessible' },
       ];
       break;
     case 'invigilators':
@@ -396,9 +399,9 @@ router.get('/template/:type', (req, res) => {
       break;
     case 'courses':
       sheetData = [
-        { 'Course ID': 'CS-101', 'Name': 'Intro to Computer Science', 'Duration': 120, 'Priority': 'High', 'Branch': 'Computer Science' },
-        { 'Course ID': 'MATH-201', 'Name': 'Linear Algebra', 'Duration': 180, 'Priority': 'Medium', 'Branch': 'Mathematics' },
-        { 'Course ID': 'PHY-302', 'Name': 'Quantum Mechanics', 'Duration': 120, 'Priority': 'High', 'Branch': 'Physics' },
+        { 'Course ID': 'CS-101', 'Name': 'Intro to Computer Science', 'Duration': 120, 'Priority': 'High', 'Branch': 'Computer Science', 'Year': 1 },
+        { 'Course ID': 'MATH-201', 'Name': 'Linear Algebra', 'Duration': 180, 'Priority': 'Medium', 'Branch': 'Mathematics', 'Year': 2 },
+        { 'Course ID': 'PHY-302', 'Name': 'Quantum Mechanics', 'Duration': 120, 'Priority': 'High', 'Branch': 'Physics', 'Year': 3 },
       ];
       break;
     case 'rooms':

@@ -35,7 +35,8 @@ export function initDatabase() {
       name TEXT NOT NULL,
       duration INTEGER NOT NULL,
       priority TEXT CHECK(priority IN ('High', 'Medium', 'Low')) NOT NULL,
-      branch TEXT
+      branch TEXT,
+      year INTEGER CHECK(year BETWEEN 1 AND 4) DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS rooms (
@@ -49,7 +50,8 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS students (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      email TEXT
+      email TEXT,
+      year INTEGER CHECK(year BETWEEN 1 AND 4) DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS student_courses (
@@ -125,6 +127,28 @@ export function initDatabase() {
     console.error("Migration error for students.email:", err);
   }
 
+  // Migrate schema to add year column to courses table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(courses)").all() as any[];
+    const hasYear = tableInfo.some(col => col.name === 'year');
+    if (!hasYear) {
+      db.prepare("ALTER TABLE courses ADD COLUMN year INTEGER DEFAULT 1").run();
+    }
+  } catch (err) {
+    console.error("Migration error for courses.year:", err);
+  }
+
+  // Migrate schema to add year column to students table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(students)").all() as any[];
+    const hasYear = tableInfo.some(col => col.name === 'year');
+    if (!hasYear) {
+      db.prepare("ALTER TABLE students ADD COLUMN year INTEGER DEFAULT 1").run();
+    }
+  } catch (err) {
+    console.error("Migration error for students.year:", err);
+  }
+
   // Migrate schedule_entries to allow null/empty
   try {
     db.transaction(() => {
@@ -183,7 +207,8 @@ export function getAllCourses(): Course[] {
     name: r.name,
     duration: r.duration,
     priority: r.priority,
-    branch: r.branch || undefined
+    branch: r.branch || undefined,
+    year: r.year || 1
   }));
 }
 
@@ -195,13 +220,14 @@ export function getCourse(id: string): Course | undefined {
     name: row.name,
     duration: row.duration,
     priority: row.priority,
-    branch: row.branch || undefined
+    branch: row.branch || undefined,
+    year: row.year || 1
   };
 }
 
 export function createCourse(course: Course): Course {
-  db.prepare('INSERT INTO courses (id, name, duration, priority, branch) VALUES (?, ?, ?, ?, ?)')
-    .run(course.id, course.name, course.duration, course.priority, course.branch || null);
+  db.prepare('INSERT INTO courses (id, name, duration, priority, branch, year) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(course.id, course.name, course.duration, course.priority, course.branch || null, course.year || 1);
   return course;
 }
 
@@ -209,8 +235,8 @@ export function updateCourse(id: string, course: Partial<Course>): Course {
   const current = getCourse(id);
   if (!current) throw new Error(`Course with ID ${id} not found`);
   const updated = { ...current, ...course };
-  db.prepare('UPDATE courses SET name = ?, duration = ?, priority = ?, branch = ? WHERE id = ?')
-    .run(updated.name, updated.duration, updated.priority, updated.branch || null, id);
+  db.prepare('UPDATE courses SET name = ?, duration = ?, priority = ?, branch = ?, year = ? WHERE id = ?')
+    .run(updated.name, updated.duration, updated.priority, updated.branch || null, updated.year || 1, id);
   return updated;
 }
 
@@ -294,7 +320,8 @@ export function getAllStudents(): Student[] {
     name: s.name,
     email: s.email || undefined,
     courses: coursesMap[s.id] || [],
-    accommodations: accomsMap[s.id] || []
+    accommodations: accomsMap[s.id] || [],
+    year: s.year || 1
   }));
 }
 
@@ -313,12 +340,13 @@ export function getStudent(id: string): Student | undefined {
     name: student.name,
     email: student.email || undefined,
     courses,
-    accommodations
+    accommodations,
+    year: student.year || 1
   };
 }
 
 export function createStudent(student: Student): Student {
-  const insertStudent = db.prepare('INSERT INTO students (id, name, email) VALUES (?, ?, ?)');
+  const insertStudent = db.prepare('INSERT INTO students (id, name, email, year) VALUES (?, ?, ?, ?)');
   const insertCourse = db.prepare('INSERT INTO student_courses (student_id, course_id) VALUES (?, ?)');
   const insertAccom = db.prepare('INSERT INTO student_accommodations (student_id, accommodation) VALUES (?, ?)');
 
@@ -329,7 +357,7 @@ export function createStudent(student: Student): Student {
   const validCourses = student.courses.filter(cId => existingCourseIds.has(cId));
 
   db.transaction(() => {
-    insertStudent.run(student.id, student.name, student.email || null);
+    insertStudent.run(student.id, student.name, student.email || null, student.year || 1);
     for (const cId of validCourses) {
       insertCourse.run(student.id, cId);
     }
@@ -346,7 +374,7 @@ export function updateStudent(id: string, student: Partial<Student>): Student {
   if (!current) throw new Error(`Student with ID ${id} not found`);
   const updated = { ...current, ...student };
 
-  const updateFields = db.prepare('UPDATE students SET name = ?, email = ? WHERE id = ?');
+  const updateFields = db.prepare('UPDATE students SET name = ?, email = ?, year = ? WHERE id = ?');
   const deleteCourses = db.prepare('DELETE FROM student_courses WHERE student_id = ?');
   const insertCourse = db.prepare('INSERT INTO student_courses (student_id, course_id) VALUES (?, ?)');
   const deleteAccoms = db.prepare('DELETE FROM student_accommodations WHERE student_id = ?');
@@ -359,7 +387,7 @@ export function updateStudent(id: string, student: Partial<Student>): Student {
   const validCourses = updated.courses.filter(cId => existingCourseIds.has(cId));
 
   db.transaction(() => {
-    updateFields.run(updated.name, updated.email || null, id);
+    updateFields.run(updated.name, updated.email || null, updated.year || 1, id);
     
     // Replace courses
     deleteCourses.run(id);

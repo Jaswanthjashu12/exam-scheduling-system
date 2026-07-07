@@ -30,9 +30,14 @@ router.get('/:id', (req, res, next) => {
 // POST /api/students
 router.post('/', (req, res, next) => {
   try {
-    const { id, name, email, courses, accommodations } = req.body;
+    const { id, name, email, courses, accommodations, year } = req.body;
     if (!id || !name) {
       return res.status(400).json({ error: 'id and name are required' });
+    }
+
+    // Validate year
+    if (year !== undefined && (isNaN(Number(year)) || Number(year) < 1 || Number(year) > 4)) {
+      return res.status(400).json({ error: 'year must be between 1 and 4' });
     }
 
     const newStudent: Student = {
@@ -40,7 +45,8 @@ router.post('/', (req, res, next) => {
       name,
       email: email || undefined,
       courses: courses || [],
-      accommodations: accommodations || []
+      accommodations: accommodations || [],
+      year: year ? Number(year) : 1
     };
 
     const created = createStudent(newStudent);
@@ -56,8 +62,14 @@ router.post('/', (req, res, next) => {
 // PUT /api/students/:id
 router.put('/:id', (req, res, next) => {
   try {
-    const { name, email, courses, accommodations } = req.body;
-    const updated = updateStudent(req.params.id, { name, email, courses, accommodations });
+    const { name, email, courses, accommodations, year } = req.body;
+
+    // Validate year
+    if (year !== undefined && (isNaN(Number(year)) || Number(year) < 1 || Number(year) > 4)) {
+      return res.status(400).json({ error: 'year must be between 1 and 4' });
+    }
+
+    const updated = updateStudent(req.params.id, { name, email, courses, accommodations, year: year ? Number(year) : undefined });
     res.json(updated);
   } catch (err: any) {
     if (err.message && err.message.includes('not found')) {

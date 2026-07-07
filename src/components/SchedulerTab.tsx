@@ -72,6 +72,7 @@ export default function SchedulerTab({
   const [newCourseId, setNewCourseId] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseBranch, setNewCourseBranch] = useState("");
+  const [newCourseYear, setNewCourseYear] = useState<number>(1);
   const [newCourseDuration, setNewCourseDuration] = useState(120);
   const [newCoursePriority, setNewCoursePriority] = useState<"High" | "Medium" | "Low">("Medium");
   const [newSlotId, setNewSlotId] = useState(DEFAULT_TIMESLOTS[0]?.id || "");
@@ -106,6 +107,7 @@ export default function SchedulerTab({
       duration: newCourseDuration,
       priority: newCoursePriority,
       branch: newCourseBranch || branches[0] || "General Academic",
+      year: newCourseYear,
     };
 
     if (setCourses) {
@@ -121,6 +123,7 @@ export default function SchedulerTab({
           name: `Student ${String.fromCharCode(65 + (i % 26))}${i} (${normalizedId})`,
           courses: [normalizedId],
           accommodations: i % 10 === 0 ? ["extra_time"] : i % 14 === 0 ? ["accessible"] : [],
+          year: newCourseYear,
         });
       }
       setStudents((prev) => [...prev, ...generatedStudents]);
@@ -145,6 +148,7 @@ export default function SchedulerTab({
     setNewCourseId("");
     setNewCourseName("");
     setNewCourseBranch("");
+    setNewCourseYear(1);
     setNewStudentCount(15);
     setIsAddingExam(false);
 
@@ -656,6 +660,20 @@ export default function SchedulerTab({
                   {branches.map((b) => (
                     <option key={b} value={b}>{b}</option>
                   ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Academic Year</label>
+                <select
+                  value={newCourseYear}
+                  onChange={(e) => setNewCourseYear(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-medium"
+                >
+                  <option value={1}>Year 1 (Freshman)</option>
+                  <option value={2}>Year 2 (Sophomore)</option>
+                  <option value={3}>Year 3 (Junior)</option>
+                  <option value={4}>Year 4 (Senior)</option>
                 </select>
               </div>
             </div>

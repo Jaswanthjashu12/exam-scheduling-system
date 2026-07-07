@@ -51,7 +51,8 @@ try {
       name TEXT NOT NULL,
       duration INTEGER NOT NULL,
       priority TEXT CHECK(priority IN ('High', 'Medium', 'Low')) NOT NULL,
-      branch TEXT
+      branch TEXT,
+      year INTEGER CHECK(year BETWEEN 1 AND 4) DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS rooms (
@@ -65,7 +66,8 @@ try {
     CREATE TABLE IF NOT EXISTS students (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      email TEXT
+      email TEXT,
+      year INTEGER CHECK(year BETWEEN 1 AND 4) DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS student_courses (
@@ -135,14 +137,14 @@ try {
 
   // 3. Define Seed Data
   const courses = [
-    { id: "CS-101", name: "Introduction to Computer Science", duration: 120, priority: "High", branch: "Computer Science & Eng" },
-    { id: "MATH-201", name: "Differential Calculus", duration: 180, priority: "High", branch: "Computer Science & Eng" },
-    { id: "PHY-110", name: "Physics: Optics & Electromagnetism", duration: 120, priority: "Medium", branch: "Electrical & Electronics" },
-    { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "Business & Humanities" },
-    { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "Business & Humanities" },
-    { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "Business & Humanities" },
-    { id: "STATS-150", name: "Applied Statistical Science", duration: 120, priority: "High", branch: "Computer Science & Eng" },
-    { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "Mechanical Engineering" },
+    { id: "CS-101", name: "Introduction to Computer Science", duration: 120, priority: "High", branch: "Computer Science & Eng", year: 1 },
+    { id: "MATH-201", name: "Differential Calculus", duration: 180, priority: "High", branch: "Computer Science & Eng", year: 2 },
+    { id: "PHY-110", name: "Physics: Optics & Electromagnetism", duration: 120, priority: "Medium", branch: "Electrical & Electronics", year: 1 },
+    { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "Business & Humanities", year: 3 },
+    { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "Business & Humanities", year: 2 },
+    { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "Business & Humanities", year: 4 },
+    { id: "STATS-150", name: "Applied Statistical Science", duration: 120, priority: "High", branch: "Computer Science & Eng", year: 3 },
+    { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "Mechanical Engineering", year: 4 },
   ];
 
   const rooms = [
@@ -161,27 +163,27 @@ try {
   ];
 
   const students = [
-    { id: "STU-01", name: "Bruce Wayne", email: "gedelapranaya@gmail.com", courses: ["CS-101", "MATH-201", "ENG-220"], accommodations: [] },
-    { id: "STU-02", name: "Clark Kent", email: "gedelapranaya@gmail.com", courses: ["MATH-201", "PHY-110", "STATS-150"], accommodations: ["extra_time"] },
-    { id: "STU-03", name: "Diana Prince", email: "gedelapranaya@gmail.com", courses: ["PHY-110", "CHEM-120", "LIT-305"], accommodations: [] },
-    { id: "STU-04", name: "Barry Allen", email: "gedelapranaya@gmail.com", courses: ["CS-101", "STATS-150"], accommodations: ["separate_room"] },
-    { id: "STU-05", name: "Arthur Curry", email: "gedelapranaya@gmail.com", courses: ["LIT-305", "BIO-101"], accommodations: ["accessible"] },
-    { id: "STU-06", name: "Hal Jordan", email: "gedelapranaya@gmail.com", courses: ["ENG-220", "PHY-110"], accommodations: [] },
-    { id: "STU-07", name: "Victor Stone", email: "gedelapranaya@gmail.com", courses: ["STATS-150", "ENG-220", "CS-101"], accommodations: ["separate_room", "accessible"] },
-    { id: "STU-08", name: "Oliver Queen", email: "gedelapranaya@gmail.com", courses: ["MATH-201", "CHEM-120"], accommodations: [] },
-    { id: "STU-09", name: "Selina Kyle", email: "gedelapranaya@gmail.com", courses: ["CS-101", "LIT-305", "BIO-101"], accommodations: ["extra_time"] },
-    { id: "STU-10", name: "Bruce Banner", email: "gedelapranaya@gmail.com", courses: ["PHY-110", "CHEM-120", "BIO-101"], accommodations: ["separate_room", "scribe"] },
-    { id: "STU-11", name: "Tony Stark", email: "gedelapranaya@gmail.com", courses: ["STATS-150", "ENG-220", "MATH-201"], accommodations: [] },
-    { id: "STU-12", name: "Peter Parker", email: "gedelapranaya@gmail.com", courses: ["BIO-101", "MATH-201"], accommodations: ["extra_time"] },
-    { id: "STU-13", name: "Natasha Romanoff", email: "gedelapranaya@gmail.com", courses: ["CS-101", "STATS-150"], accommodations: [] },
-    { id: "STU-14", name: "Steve Rogers", email: "gedelapranaya@gmail.com", courses: ["LIT-305", "ENG-220"], accommodations: ["accessible"] },
-    { id: "STU-15", name: "Wanda Maximoff", email: "gedelapranaya@gmail.com", courses: ["CHEM-120", "PHY-110"], accommodations: ["separate_room"] },
+    { id: "STU-01", name: "Bruce Wayne", email: "gedelapranaya@gmail.com", courses: ["CS-101", "MATH-201", "ENG-220"], accommodations: [], year: 1 },
+    { id: "STU-02", name: "Clark Kent", email: "gedelapranaya@gmail.com", courses: ["MATH-201", "PHY-110", "STATS-150"], accommodations: ["extra_time"], year: 2 },
+    { id: "STU-03", name: "Diana Prince", email: "gedelapranaya@gmail.com", courses: ["PHY-110", "CHEM-120", "LIT-305"], accommodations: [], year: 1 },
+    { id: "STU-04", name: "Barry Allen", email: "gedelapranaya@gmail.com", courses: ["CS-101", "STATS-150"], accommodations: ["separate_room"], year: 3 },
+    { id: "STU-05", name: "Arthur Curry", email: "gedelapranaya@gmail.com", courses: ["LIT-305", "BIO-101"], accommodations: ["accessible"], year: 2 },
+    { id: "STU-06", name: "Hal Jordan", email: "gedelapranaya@gmail.com", courses: ["ENG-220", "PHY-110"], accommodations: [], year: 4 },
+    { id: "STU-07", name: "Victor Stone", email: "gedelapranaya@gmail.com", courses: ["STATS-150", "ENG-220", "CS-101"], accommodations: ["separate_room", "accessible"], year: 3 },
+    { id: "STU-08", name: "Oliver Queen", email: "gedelapranaya@gmail.com", courses: ["MATH-201", "CHEM-120"], accommodations: [], year: 2 },
+    { id: "STU-09", name: "Selina Kyle", email: "gedelapranaya@gmail.com", courses: ["CS-101", "LIT-305", "BIO-101"], accommodations: ["extra_time"], year: 1 },
+    { id: "STU-10", name: "Bruce Banner", email: "gedelapranaya@gmail.com", courses: ["PHY-110", "CHEM-120", "BIO-101"], accommodations: ["separate_room", "scribe"], year: 4 },
+    { id: "STU-11", name: "Tony Stark", email: "gedelapranaya@gmail.com", courses: ["STATS-150", "ENG-220", "MATH-201"], accommodations: [], year: 3 },
+    { id: "STU-12", name: "Peter Parker", email: "gedelapranaya@gmail.com", courses: ["BIO-101", "MATH-201"], accommodations: ["extra_time"], year: 2 },
+    { id: "STU-13", name: "Natasha Romanoff", email: "gedelapranaya@gmail.com", courses: ["CS-101", "STATS-150"], accommodations: [], year: 1 },
+    { id: "STU-14", name: "Steve Rogers", email: "gedelapranaya@gmail.com", courses: ["LIT-305", "ENG-220"], accommodations: ["accessible"], year: 4 },
+    { id: "STU-15", name: "Wanda Maximoff", email: "gedelapranaya@gmail.com", courses: ["CHEM-120", "PHY-110"], accommodations: ["separate_room"], year: 3 },
   ];
 
   console.log('Seeding courses...');
-  const insertCourse = db.prepare('INSERT INTO courses (id, name, duration, priority, branch) VALUES (?, ?, ?, ?, ?)');
+  const insertCourse = db.prepare('INSERT INTO courses (id, name, duration, priority, branch, year) VALUES (?, ?, ?, ?, ?, ?)');
   for (const c of courses) {
-    insertCourse.run(c.id, c.name, c.duration, c.priority, c.branch);
+    insertCourse.run(c.id, c.name, c.duration, c.priority, c.branch, c.year);
   }
 
   console.log('Seeding rooms...');
@@ -201,11 +203,11 @@ try {
   }
 
   console.log('Seeding students...');
-  const insertStudent = db.prepare('INSERT INTO students (id, name, email) VALUES (?, ?, ?)');
+  const insertStudent = db.prepare('INSERT INTO students (id, name, email, year) VALUES (?, ?, ?, ?)');
   const insertStudentCourse = db.prepare('INSERT INTO student_courses (student_id, course_id) VALUES (?, ?)');
   const insertStudentAccom = db.prepare('INSERT INTO student_accommodations (student_id, accommodation) VALUES (?, ?)');
   for (const s of students) {
-    insertStudent.run(s.id, s.name, s.email || null);
+    insertStudent.run(s.id, s.name, s.email || null, s.year);
     for (const cId of s.courses) {
       insertStudentCourse.run(s.id, cId);
     }
