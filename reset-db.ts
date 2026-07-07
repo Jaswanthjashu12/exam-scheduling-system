@@ -2,7 +2,9 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-const dbDir = path.resolve(process.cwd(), 'data');
+const dbDir = import.meta.dirname
+  ? path.resolve(import.meta.dirname, 'data')
+  : path.resolve(process.cwd(), 'data');
 const dbPath = path.join(dbDir, 'exam_scheduler.db');
 const walPath = path.join(dbDir, 'exam_scheduler.db-wal');
 const shmPath = path.join(dbDir, 'exam_scheduler.db-shm');
