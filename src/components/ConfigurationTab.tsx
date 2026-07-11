@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Course, Room, Student, Invigilator, AccommodationType } from "../types";
 import { getCourseEnrollment, getTimeslotExact, DEFAULT_TIMESLOTS } from "../utils/solver";
 import { Plus, Trash, Edit2, GraduationCap, School, Users, Key, Briefcase, FileText, Check, AlertCircle, Info, Sparkles, X, Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -25,6 +25,7 @@ interface ConfigurationTabProps {
   onLoadSimple: () => void;
   onClearAll?: () => void;
   examStartDate?: string;
+  setActiveTab?: (tab: any) => void;
 }
 
 export default function ConfigurationTab({
@@ -44,8 +45,16 @@ export default function ConfigurationTab({
   onLoadSimple,
   onClearAll,
   examStartDate = "2026-06-15",
+  setActiveTab,
 }: ConfigurationTabProps) {
   const [activeSubTab, setActiveSubTab] = useState<"courses" | "rooms" | "students" | "invigilators">("courses");
+
+  // Check for redirected room focus
+  useEffect(() => {
+    if (localStorage.getItem("exam_scheduler_focus_add_room") === "true") {
+      setActiveSubTab("rooms");
+    }
+  }, []);
   const [isLlmGenerating, setIsLlmGenerating] = useState(false);
   const [llmTheme, setLlmTheme] = useState("Cybersecurity High School");
   const [llmError, setLlmError] = useState<string | null>(null);
@@ -510,6 +519,25 @@ export default function ConfigurationTab({
 
   return (
     <div className="space-y-6">
+      {localStorage.getItem("exam_scheduler_focus_add_room") === "true" && (
+        <div className="bg-blue-950/40 border border-blue-800 text-blue-300 p-4 rounded-xl flex items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-blue-400 shrink-0" />
+            <span className="text-xs font-semibold">
+              ✨ Redirected from Seating Tab to configure a new room. After adding your new room, click Return to resume.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem("exam_scheduler_focus_add_room");
+              if (setActiveTab) setActiveTab("seating");
+            }}
+            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-bold cursor-pointer transition shrink-0 select-none shadow"
+          >
+            Return to Seating Tab
+          </button>
+        </div>
+      )}
       {/* ========== IMPORT FROM EXCEL MODAL ========== */}
       {importModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => !importLoading && setImportModalOpen(false)}>

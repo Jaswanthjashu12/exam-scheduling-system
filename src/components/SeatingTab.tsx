@@ -17,9 +17,10 @@ interface SeatingTabProps {
   entries: ScheduleEntry[];
   examStartDate?: string;
   collegeName?: string;
+  setActiveTab?: (tab: any) => void;
 }
 
-export default function SeatingTab({ courses, rooms, students, invigilators, entries, examStartDate = "2026-06-15", collegeName = "" }: SeatingTabProps) {
+export default function SeatingTab({ courses, rooms, students, invigilators, entries, examStartDate = "2026-06-15", collegeName = "", setActiveTab }: SeatingTabProps) {
   const [selectedSlotId, setSelectedSlotId] = useState("Day-1-Morning");
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [sendingPlan, setSendingPlan] = useState(false);
@@ -694,8 +695,52 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   const seatedStudentIds = new Set(resolvedArrangement.filter(Boolean) as string[]);
   const overflowStudents = enrolledStudents.filter((s) => !seatedStudentIds.has(s.id));
 
-  // All other rooms in the system (exclude current room)
-  const overflowTargetRooms = rooms.filter((r) => r.id !== currentRoomId);
+  const getRoomOccupancyInSlot = (roomId: string, slotId: string) => {
+    const roomEntries = entries.filter((e) => e.timeslotId === slotId && e.roomId === roomId);
+    let totalOccupancy = 0;
+    
+    for (const ent of roomEntries) {
+      const courseEntries = entries.filter((e) => e.timeslotId === slotId && e.courseId === ent.courseId);
+      const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
+      let enrolled = totalStudents;
+      
+      if (courseEntries.length > 1) {
+        const roomsWithCap = courseEntries.map((e) => {
+          const r = rooms.find((rm) => rm.id === e.roomId);
+          return {
+            id: e.id,
+            roomId: e.roomId,
+            capacity: r?.capacity || 30,
+          };
+        }).sort((a, b) => b.capacity - a.capacity);
+        
+        const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+        
+        let assignedSoFar = 0;
+        for (let i = 0; i <= entIdx; i++) {
+          const rObj = roomsWithCap[i];
+          if (i === entIdx) {
+            if (i === roomsWithCap.length - 1) {
+              enrolled = totalStudents - assignedSoFar;
+            } else {
+              enrolled = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+            }
+          } else {
+            assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
+          }
+        }
+      }
+      totalOccupancy += enrolled;
+    }
+    return totalOccupancy;
+  };
+
+  // All other rooms in the system (exclude current room and fully occupied rooms)
+  const overflowTargetRooms = rooms.filter((r) => {
+    if (r.id === currentRoomId) return false;
+    const occupancy = getRoomOccupancyInSlot(r.id, selectedSlotId);
+    return occupancy < r.capacity;
+  });
 
   // Existing overflow assignment originating from this room+slot
   const currentOverflowAssignment = overflowAssignments.find(
@@ -1391,31 +1436,43 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                   ) : (
                     <>
                       <p className="text-[10px] text-slate-400">Pick a room in <span className="font-bold text-white">{getTimeslotExact(selectedSlotId, examStartDate)}</span> to send the overflow students to:</p>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={selectedOverflowTargetRoom}
-                          onChange={(e) => setSelectedOverflowTargetRoom(e.target.value)}
-                          className="flex-grow px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-slate-200"
-                        >
-                          <option value="">Select target room…</option>
-                          {overflowTargetRooms.map((r) => {
-                            const isAssigned = activeEntries.some((e) => e.roomId === r.id);
-                            return (
-                              <option key={r.id} value={r.id}>
-                                {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""}) — cap {r.capacity} {isAssigned ? "(Active)" : "(Free)"}
-                              </option>
-                            );
-                          })}
-                          {overflowTargetRooms.length === 0 && (
-                            <option disabled>No other rooms in system</option>
-                          )}
-                        </select>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={selectedOverflowTargetRoom}
+                            onChange={(e) => setSelectedOverflowTargetRoom(e.target.value)}
+                            className="flex-grow px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-slate-200"
+                          >
+                            <option value="">Select target room…</option>
+                            {overflowTargetRooms.map((r) => {
+                              const isAssigned = activeEntries.some((e) => e.roomId === r.id);
+                              return (
+                                <option key={r.id} value={r.id}>
+                                  {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""}) — cap {r.capacity} {isAssigned ? "(Active)" : "(Free)"}
+                                </option>
+                              );
+                            })}
+                            {overflowTargetRooms.length === 0 && (
+                              <option disabled>No other available rooms in system</option>
+                            )}
+                          </select>
+                          <button
+                            onClick={handleAssignOverflow}
+                            disabled={!selectedOverflowTargetRoom}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap"
+                          >
+                            Assign →
+                          </button>
+                        </div>
+                        
                         <button
-                          onClick={handleAssignOverflow}
-                          disabled={!selectedOverflowTargetRoom}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap"
+                          onClick={() => {
+                            localStorage.setItem("exam_scheduler_focus_add_room", "true");
+                            if (setActiveTab) setActiveTab("config");
+                          }}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 font-bold underline transition text-left cursor-pointer self-start"
                         >
-                          Assign →
+                          + Need to add a new classroom? Click here
                         </button>
                       </div>
                     </>

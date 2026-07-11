@@ -654,6 +654,7 @@ export default function App() {
             onLoadSimple={loadSimpleData}
             onClearAll={clearAllData}
             examStartDate={examStartDate}
+            setActiveTab={setActiveTab}
           />
         )}
 
@@ -687,6 +688,7 @@ export default function App() {
             entries={entries}
             examStartDate={examStartDate}
             collegeName={collegeName}
+            setActiveTab={setActiveTab}
           />
         )}
 
