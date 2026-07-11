@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Course, Room, Student, Invigilator, ScheduleEntry } from "../types";
 import { DEFAULT_TIMESLOTS, getTimeslotExact } from "../utils/solver";
 import { Users, Info, ShieldAlert, Check, HelpCircle, AlertTriangle, Move, RotateCcw, Printer, Mail, Loader2, ArrowRightCircle, LogIn } from "lucide-react";
@@ -25,7 +25,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   const [sendingPlan, setSendingPlan] = useState(false);
   const [sendSuccessMessage, setSendSuccessMessage] = useState<string | null>(null);
   const [autoSortMode, setAutoSortMode] = useState<"anti-cheat" | "alt-cols" | "alt-rows" | "roll-number" | "branch">(() => {
-    return (localStorage.getItem("exam_scheduler_autosort_mode_v2") as any) || "roll-number";
+    return (localStorage.getItem("exam_scheduler_autosort_mode_v2") as any) || "anti-cheat";
   });
   const [fillDirection, setFillDirection] = useState<"row-wise" | "column-wise">(() => {
     return (localStorage.getItem("exam_scheduler_fill_direction_v2") as any) || "column-wise";
@@ -36,7 +36,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   const [interleaveDepts, setInterleaveDepts] = useState<boolean>(() => {
     return localStorage.getItem("exam_scheduler_interleave_depts") !== "false";
   });
-
+  const [allowDiffBranchSecAdjacent, setAllowDiffBranchSecAdjacent] = useState<boolean>(() => {
+    const saved = localStorage.getItem("exam_scheduler_allow_diff_branch_sec_adjacent");
+    return saved !== null ? saved === "true" : true;
+  });
   // Overflow assignment state — tracks which overflow students go to which room
   interface OverflowAssignment {
     slotId: string;
@@ -52,24 +55,126 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   // Auto-select room on slot change if none selected
   const activeEntries = entries.filter((e) => e.timeslotId === selectedSlotId);
-  const activeRooms = rooms.filter((r) => activeEntries.some((e) => e.roomId === r.id));
+  
+  // A room is active if it has scheduled entries OR receives overflow in this slot
+  const activeRooms = rooms.filter((r) => 
+    activeEntries.some((e) => e.roomId === r.id) ||
+    overflowAssignments.some((a) => a.slotId === selectedSlotId && a.toRoomId === r.id)
+  );
 
   const currentRoomId = selectedRoomId || activeRooms[0]?.id || "";
 
   // Find courses and enrolled students writing in this Room + Timeslot
   const selectedEntries = activeEntries.filter((e) => e.roomId === currentRoomId);
   const coursesInRoom = selectedEntries.map((e) => courses.find((c) => c.id === e.courseId)).filter(Boolean) as Course[];
+
+  // Helper to find the course a student is taking in the current timeslot
+  const getStudentCourseInSlot = (s: Student): Course | null => {
+    // 1. Look in the currently viewed room's entries first
+    const localCid = s.courses.find((cId) => selectedEntries.some((e) => e.courseId === cId));
+    if (localCid) return courses.find((c) => c.id === localCid) || null;
+    // 2. Look in any room's entries for this slot
+    const activeCid = s.courses.find((cId) => activeEntries.some((e) => e.courseId === cId));
+    if (activeCid) return courses.find((c) => c.id === activeCid) || null;
+    return null;
+  };
+
+  // Helper to find the year classification of a student in this slot
+  const getStudentYearInSlot = (s: Student): number => {
+    const course = getStudentCourseInSlot(s);
+    if (course?.year) return course.year;
+    if (s.year !== undefined && s.year !== null) return s.year;
+    return 1;
+  };
   
-  const enrolledStudents: Student[] = [];
-  const seenStudentIds = new Set<string>();
-  selectedEntries.forEach((ent) => {
-    const enroll = students.filter((s) => s.courses.includes(ent.courseId));
-    enroll.forEach((s) => {
-      if (!seenStudentIds.has(s.id)) {
-        seenStudentIds.add(s.id);
-        enrolledStudents.push(s);
-      }
+  // 1. Locally enrolled students (distributed proportionally if a course is in multiple rooms)
+  const slotEntries = entries.filter((e) => e.timeslotId === selectedSlotId);
+  const courseEntriesMap: Record<string, typeof slotEntries> = {};
+  slotEntries.forEach((e) => {
+    if (!courseEntriesMap[e.courseId]) courseEntriesMap[e.courseId] = [];
+    courseEntriesMap[e.courseId].push(e);
+  });
+
+  const studentRoomAssignment: Record<string, string> = {};
+
+  Object.keys(courseEntriesMap).forEach((cid) => {
+    const courseEntries = courseEntriesMap[cid];
+    const rawStudents = students.filter((s) => s.courses.includes(cid));
+    
+    // Group by branch-section to interleave sections/branches across rooms
+    const secGroups: Record<string, Student[]> = {};
+    rawStudents.forEach((s) => {
+      const key = `${(s.branch || '').toUpperCase()}-${(s.section || '').toUpperCase()}`;
+      if (!secGroups[key]) secGroups[key] = [];
+      secGroups[key].push(s);
     });
+    
+    // Sort each group alphabetically
+    const sortedGroups = Object.keys(secGroups).sort().map((key) => {
+      return secGroups[key].sort((a, b) => a.id.localeCompare(b.id));
+    });
+    
+    // Interleave
+    const courseStudents: Student[] = [];
+    if (sortedGroups.length > 0) {
+      const maxLen = Math.max(...sortedGroups.map((g) => g.length));
+      for (let i = 0; i < maxLen; i++) {
+        for (const g of sortedGroups) {
+          if (i < g.length) {
+            courseStudents.push(g[i]);
+          }
+        }
+      }
+    }
+
+    if (courseEntries.length === 1) {
+      courseStudents.forEach((s) => {
+        studentRoomAssignment[s.id] = courseEntries[0].roomId;
+      });
+    } else if (courseEntries.length > 1) {
+      const roomsWithCap = courseEntries
+        .map((e) => {
+          const r = rooms.find((rm) => rm.id === e.roomId);
+          return {
+            roomId: e.roomId,
+            capacity: r?.capacity || 30,
+          };
+        })
+        .sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+
+      let assignedCount = 0;
+      roomsWithCap.forEach((rObj, idx) => {
+        let share = 0;
+        if (idx === roomsWithCap.length - 1) {
+          share = courseStudents.length - assignedCount;
+        } else {
+          share = Math.min(rObj.capacity, courseStudents.length - assignedCount);
+        }
+
+        const slice = courseStudents.slice(assignedCount, assignedCount + share);
+        slice.forEach((s) => {
+          studentRoomAssignment[s.id] = rObj.roomId;
+        });
+        assignedCount += share;
+      });
+    }
+  });
+
+  const enrolledStudents = students.filter((s) => studentRoomAssignment[s.id] === currentRoomId);
+  const seenStudentIds = new Set<string>(enrolledStudents.map((s) => s.id));
+
+  // 2. Total students in room (local + overflow arrivals)
+  const totalStudentsInRoom = [...enrolledStudents];
+  const totalSeenStudentIds = new Set(seenStudentIds);
+  const arrivals = overflowAssignments
+    .filter((a) => a.slotId === selectedSlotId && a.toRoomId === currentRoomId)
+    .flatMap((a) => a.studentIds.map((id) => students.find((s) => s.id === id)).filter(Boolean) as Student[]);
+
+  arrivals.forEach((s) => {
+    if (!totalSeenStudentIds.has(s.id)) {
+      totalSeenStudentIds.add(s.id);
+      totalStudentsInRoom.push(s);
+    }
   });
 
   const roomObj = rooms.find((r) => r.id === currentRoomId);
@@ -144,7 +249,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   // Track the source seat index during manual rearrangement
   const [selectedSeatIndex, setSelectedSeatIndex] = useState<number | null>(null);
-  const enrolledIds = enrolledStudents.map(s => s.id);
+  const enrolledIds = totalStudentsInRoom.map(s => s.id);
 
   // Sync / Reconcile arrangements (use gridTotalSeats as the effective grid size)
   let resolvedArrangement: (string | null)[] = [];
@@ -163,7 +268,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       // Keep only students who are actually enrolled here
       currentArr = currentArr.map((id) => (id && enrolledIds.includes(id) ? id : null));
       // Seat any missing enrolled students
-      const missing = enrolledStudents.filter((s) => !currentArr.includes(s.id));
+      const missing = totalStudentsInRoom.filter((s) => !currentArr.includes(s.id));
       let missingIdx = 0;
       for (let i = 0; i < gridTotalSeats; i++) {
         if (currentArr[i] === null && missingIdx < missing.length) {
@@ -179,9 +284,8 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       if (enforceGap) {
         // Group students by branch (department)
         const branchGroups: Record<string, Student[]> = {};
-        enrolledStudents.forEach((s) => {
-          const courseId = s.courses.find((cId) => selectedEntries.some((e) => e.courseId === cId));
-          const course = courses.find((c) => c.id === courseId);
+        totalStudentsInRoom.forEach((s) => {
+          const course = getStudentCourseInSlot(s);
           const branch = course?.branch || "General Academic";
           if (!branchGroups[branch]) {
             branchGroups[branch] = [];
@@ -254,63 +358,80 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
           }
         }
       } else if (autoSortMode === "alt-cols" || autoSortMode === "anti-cheat") {
-        // --- Zero-Adjacency Row-Scan Greedy Allocator ---
-        // For each seat (left→right, top→bottom), pick the course with the MOST
-        // remaining students that is DIFFERENT from the left neighbour's course.
-        // This guarantees no two same-exam students ever sit horizontally adjacent.
-
-        // Group students by course ID, sorted by roll number
-        const groups: Record<string, Student[]> = {};
-        enrolledStudents.forEach((s) => {
-          const cid = s.courses.find((c) => selectedEntries.some((e) => e.courseId === c)) || "unknown";
-          if (!groups[cid]) groups[cid] = [];
-          groups[cid].push(s);
-        });
-        Object.keys(groups).forEach((cid) => {
-          groups[cid].sort((a, b) => a.id.localeCompare(b.id));
+        // Group students by year-branch-section
+        const secGroups: Record<string, Student[]> = {};
+        totalStudentsInRoom.forEach((s) => {
+          const course = getStudentCourseInSlot(s);
+          const year = course?.year || 1;
+          const branch = (s.branch || '').toUpperCase();
+          const section = (s.section || '').toUpperCase();
+          const key = `${year}-${branch}-${section}`;
+          if (!secGroups[key]) secGroups[key] = [];
+          secGroups[key].push(s);
         });
 
-        // Build a mutable queue per course
-        const queues: Record<string, Student[]> = {};
-        Object.keys(groups).forEach((cid) => { queues[cid] = [...groups[cid]]; });
-        const courseIds = Object.keys(queues);
+        // Sort each group alphabetically by ID
+        Object.keys(secGroups).forEach((k) => {
+          secGroups[k].sort((a, b) => a.id.localeCompare(b.id));
+        });
 
-        for (let r = 0; r < numRows; r++) {
+        // Extract unique keys
+        const uniqueKeys = Object.keys(secGroups).sort();
+        
+        // Interleave keys by year to ensure years alternate if multiple years are present
+        const years = Array.from(new Set(uniqueKeys.map(k => k.split('-')[0])));
+        const keysByYear: Record<string, string[]> = {};
+        years.forEach(y => {
+          keysByYear[y] = uniqueKeys.filter(k => k.startsWith(y + '-'));
+        });
+
+        const interleavedKeys: string[] = [];
+        const sortedYears = years.sort();
+        const maxKeysLen = Math.max(...sortedYears.map(y => keysByYear[y].length));
+        
+        for (let i = 0; i < maxKeysLen; i++) {
+          for (const y of sortedYears) {
+            if (i < keysByYear[y].length) {
+              interleavedKeys.push(keysByYear[y][i]);
+            }
+          }
+        }
+
+        // Fill the grid using scanOrder (column-wise or row-wise)
+        const scanOrder: { r: number; c: number }[] = [];
+        if (fillDirection === "column-wise") {
           for (let c = 0; c < numCols; c++) {
-            const idx = r * numCols + c;
-
-            // Determine the course of the left neighbour (if any)
-            let leftCid: string | null = null;
-            if (c > 0) {
-              const leftId = defaultArr[idx - 1];
-              if (leftId) {
-                const leftStu = enrolledStudents.find(s => s.id === leftId);
-                leftCid = leftStu?.courses.find(cx => selectedEntries.some(e => e.courseId === cx)) ?? null;
-              }
+            for (let r = 0; r < numRows; r++) {
+              scanOrder.push({ r, c });
             }
-
-            // Pick the course with the most students remaining that ≠ leftCid
-            let bestCid: string | null = null;
-            let bestCount = -1;
-            for (const cid of courseIds) {
-              if (queues[cid].length > 0 && cid !== leftCid) {
-                if (queues[cid].length > bestCount) {
-                  bestCount = queues[cid].length;
-                  bestCid = cid;
-                }
-              }
+          }
+        } else {
+          for (let r = 0; r < numRows; r++) {
+            for (let c = 0; c < numCols; c++) {
+              scanOrder.push({ r, c });
             }
+          }
+        }
 
-            // Fallback: if every remaining course equals leftCid (only 1 course left),
-            // still place them — unavoidable when only one exam is in the room
-            if (bestCid === null) {
-              for (const cid of courseIds) {
-                if (queues[cid].length > 0) { bestCid = cid; break; }
-              }
-            }
+        // Assign a section key to each column index
+        const colKeyMap: Record<number, string> = {};
+        for (let c = 0; c < numCols; c++) {
+          colKeyMap[c] = interleavedKeys[c % interleavedKeys.length];
+        }
 
-            if (bestCid && queues[bestCid].length > 0) {
-              defaultArr[idx] = queues[bestCid].shift()!.id;
+        for (const { r, c } of scanOrder) {
+          const idx = r * numCols + c;
+          
+          let targetKey = colKeyMap[c];
+          
+          // Pull from target group
+          if (targetKey && secGroups[targetKey] && secGroups[targetKey].length > 0) {
+            defaultArr[idx] = secGroups[targetKey].shift()!.id;
+          } else {
+            // Fallback: pull from the first non-empty group in interleavedKeys
+            const fallbackKey = interleavedKeys.find(k => secGroups[k] && secGroups[k].length > 0);
+            if (fallbackKey) {
+              defaultArr[idx] = secGroups[fallbackKey].shift()!.id;
             }
           }
         }
@@ -318,8 +439,8 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         // Row-parallel alternating allocator
         // Group students by course ID
         const groups: Record<string, Student[]> = {};
-        enrolledStudents.forEach((s) => {
-          const cid = s.courses.find((c) => selectedEntries.some((e) => e.courseId === c)) || "unknown";
+        totalStudentsInRoom.forEach((s) => {
+          const cid = getStudentCourseInSlot(s)?.id || "unknown";
           if (!groups[cid]) groups[cid] = [];
           groups[cid].push(s);
         });
@@ -378,7 +499,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         let sorted: Student[] = [];
 
         if (autoSortMode === "roll-number") {
-          sorted = [...enrolledStudents].sort((a, b) => a.id.localeCompare(b.id));
+          sorted = [...totalStudentsInRoom].sort((a, b) => a.id.localeCompare(b.id));
           if (fillDirection === "column-wise") {
             sorted.forEach((stu, i) => {
               if (i < gridTotalSeats) {
@@ -398,9 +519,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             });
           }
         } else if (autoSortMode === "branch") {
-          sorted = [...enrolledStudents].sort((a, b) => {
-            const courseA = courses.find((c) => a.courses.includes(c.id) && selectedEntries.some((e) => e.courseId === c.id));
-            const courseB = courses.find((c) => b.courses.includes(c.id) && selectedEntries.some((e) => e.courseId === c.id));
+          sorted = [...totalStudentsInRoom].sort((a, b) => {
+            const courseA = getStudentCourseInSlot(a);
+            const courseB = getStudentCourseInSlot(b);
             const branchA = courseA?.branch || "ZZZ";
             const branchB = courseB?.branch || "ZZZ";
             const cmp = branchA.localeCompare(branchB);
@@ -481,31 +602,31 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       const idx = r * numCols + c;
       const studentId = resolvedArrangement[idx] ?? null;
       const stu = studentId ? students.find((s) => s.id === studentId) || null : null;
-      let courseOfStudent: Course | null = null;
-      if (stu) {
-        const matchingCourseId = stu.courses.find((cid) => selectedEntries.some((e) => e.courseId === cid));
-        if (matchingCourseId) {
-          courseOfStudent = courses.find((x) => x.id === matchingCourseId) || null;
-        }
-      }
+      const courseOfStudent = stu ? getStudentCourseInSlot(stu) : null;
       seatingGrid.push({ row: r + 1, col: c + 1, student: stu, course: courseOfStudent, isRisk: false });
     }
   }
 
-  // Count unique exams present in this room
-  const uniqueCourseIds = new Set(seatingGrid.filter(s => s.course).map(s => s.course!.id));
-  const singleExamRoom = uniqueCourseIds.size <= 1;
+  // Count unique academic years present in this room
+  const uniqueYears = new Set(
+    seatingGrid
+      .filter((s) => s.student)
+      .map((s) => getStudentYearInSlot(s.student!))
+  );
+  const singleYearRoom = uniqueYears.size <= 1;
+  const singleExamRoom = singleYearRoom;
 
   // Evaluate Cheating Risk proximity warnings
-  // Rule: Same-exam students CAN sit in the same column (top/bottom OK).
-  //       Same-exam students CANNOT sit side by side (left/right = risk).
-  // SKIP risk flagging entirely when only one exam is in the room — adjacency is unavoidable.
-  if (!singleExamRoom) {
+  // Rule: Same-year students CAN sit in the same column (top/bottom OK).
+  //       Same-year students CANNOT sit side by side (left/right = risk).
+  // SKIP risk flagging entirely when only one academic year is in the room — adjacency is unavoidable.
+  if (!singleYearRoom) {
     for (let i = 0; i < seatingGrid.length; i++) {
       const seat = seatingGrid[i];
-      if (seat.student && seat.course) {
+      if (seat.student) {
         const row = seat.row;
         const col = seat.col;
+        const sYear = getStudentYearInSlot(seat.student);
 
         // Only check horizontal neighbors (left & right) — same column (up/down) is allowed
         const horizontalNeighbors = [
@@ -514,9 +635,19 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         ];
 
         for (const edge of horizontalNeighbors) {
-          if (edge && edge.student && edge.course && edge.course.id === seat.course.id) {
-            seat.isRisk = true;
-            break;
+          if (edge && edge.student) {
+            const edgeYear = getStudentYearInSlot(edge.student);
+            if (edgeYear === sYear) {
+              if (allowDiffBranchSecAdjacent) {
+                const diffBranch = (seat.student.branch || '').toUpperCase() !== (edge.student.branch || '').toUpperCase();
+                const diffSec = (seat.student.section || '').toUpperCase() !== (edge.student.section || '').toUpperCase();
+                if (diffBranch || diffSec) {
+                  continue;
+                }
+              }
+              seat.isRisk = true;
+              break;
+            }
           }
         }
       }
@@ -534,8 +665,8 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   const seatedStudentIds = new Set(resolvedArrangement.filter(Boolean) as string[]);
   const overflowStudents = enrolledStudents.filter((s) => !seatedStudentIds.has(s.id));
 
-  // Rooms in the same slot that can receive overflow (exclude current room)
-  const overflowTargetRooms = activeRooms.filter((r) => r.id !== currentRoomId);
+  // All other rooms in the system (exclude current room)
+  const overflowTargetRooms = rooms.filter((r) => r.id !== currentRoomId);
 
   // Existing overflow assignment originating from this room+slot
   const currentOverflowAssignment = overflowAssignments.find(
@@ -590,6 +721,44 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
   };
 
+  // Automatically sync / clear overflow assignment if students fit now (due to layout / grid changes)
+  useEffect(() => {
+    if (!selectedSlotId || !currentRoomId) return;
+
+    const currentOverflowIds = overflowStudents.map((s) => s.id).sort();
+
+    setOverflowAssignments((prev) => {
+      const currentAssignment = prev.find(
+        (a) => a.slotId === selectedSlotId && a.fromRoomId === currentRoomId
+      );
+      if (!currentAssignment) return prev;
+
+      const savedIds = [...currentAssignment.studentIds].sort();
+      const isDifferent = 
+        currentOverflowIds.length !== savedIds.length ||
+        currentOverflowIds.some((id, idx) => id !== savedIds[idx]);
+
+      if (!isDifferent) return prev;
+
+      let updated;
+      if (currentOverflowIds.length === 0) {
+        updated = prev.filter(
+          (a) => !(a.slotId === selectedSlotId && a.fromRoomId === currentRoomId)
+        );
+      } else {
+        updated = prev.map((a) => {
+          if (a.slotId === selectedSlotId && a.fromRoomId === currentRoomId) {
+            return { ...a, studentIds: currentOverflowIds };
+          }
+          return a;
+        });
+      }
+
+      localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
+      return updated;
+    });
+  }, [selectedSlotId, currentRoomId, overflowStudents]);
+
   const handleSendSeatingPlan = async () => {
     if (assignedProctors.length === 0) {
       alert("No proctors are currently assigned to this classroom for this slot. Please assign a proctor in the Optimizer Calendar first.");
@@ -606,11 +775,11 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     setSendSuccessMessage(null);
     try {
       const timeslotLabel = getTimeslotExact(selectedSlotId, examStartDate);
-      const roomLabel = `${roomObj?.name} (${roomObj?.building})`;
+      const roomLabel = `${roomObj?.name} (${roomObj?.building}${roomObj?.block ? ` - ${roomObj.block}` : ""})`;
       const seatingGridPayload = seatingGrid.map(s => ({
         row: s.row,
         col: s.col,
-        student: s.student ? { name: s.student.name, id: s.student.id, email: (s.student as any).email, accommodations: s.student.accommodations } : null,
+        student: s.student ? { name: s.student.name, id: s.student.id, email: (s.student as any).email, accommodations: s.student.accommodations, branch: (s.student as any).branch, section: (s.student as any).section } : null,
         course: s.course ? { id: s.course.id, name: s.course.name, branch: s.course.branch } : null,
         isRisk: s.isRisk
       }));
@@ -763,7 +932,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
               >
                 {activeRooms.map((r) => (
                   <option key={r.id} value={r.id} className="bg-[#12151C] text-slate-200">
-                    {r.name} ({r.building})
+                    {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""})
                   </option>
                 ))}
                 {activeRooms.length === 0 && <option value="">No Active rooms in this timeslot</option>}
@@ -918,6 +1087,32 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 </div>
               </div>
 
+              {/* Branch/Section Adjacency Option */}
+              <div className="flex flex-col gap-1 ml-4 border-l border-slate-800/80 pl-4">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Same-Course Exceptions</label>
+                <div className="flex flex-col gap-1 mt-0.5">
+                  <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer select-none" title="Allows same-course students from different branches or different sections to sit horizontally adjacent.">
+                    <input
+                      type="checkbox"
+                      checked={allowDiffBranchSecAdjacent}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setAllowDiffBranchSecAdjacent(val);
+                        localStorage.setItem("exam_scheduler_allow_diff_branch_sec_adjacent", String(val));
+                        // Clear custom overrides to trigger auto-sort update immediately
+                        const updated = { ...customSeating };
+                        delete updated[seatKey];
+                        setCustomSeating(updated);
+                        localStorage.setItem("exam_scheduler_custom_seating", JSON.stringify(updated));
+                        setSelectedSeatIndex(null);
+                      }}
+                      className="accent-indigo-500 rounded cursor-pointer"
+                    />
+                    <span>Allow Diff Branch/Sec</span>
+                  </label>
+                </div>
+              </div>
+
               {/* Seating Flow Direction */}
               <div className="flex flex-col gap-1 ml-4 border-l border-slate-800/80 pl-4">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Arrangement Flow</label>
@@ -968,7 +1163,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
               <div>
                 <h3 className="text-xs font-semibold text-slate-400 print:text-slate-800 uppercase tracking-widest">Floor Plan Grid Matrix</h3>
                 <p className="text-[11px] text-slate-400 print:text-slate-600 mt-1">
-                  Active Room: <span className="font-bold text-white print:text-black">{roomObj?.name}</span> ({roomObj?.building}) | Total Seats: <span className="font-bold text-slate-200 print:text-slate-800">{roomObj?.capacity}</span>
+                  Active Room: <span className="font-bold text-white print:text-black">{roomObj?.name}</span> ({roomObj?.building}{roomObj?.block ? ` - ${roomObj.block}` : ""}) | Total Seats: <span className="font-bold text-slate-200 print:text-slate-800">{roomObj?.capacity}</span>
                 </p>
               </div>
               <div className="flex items-center gap-2 print:hidden">
@@ -982,18 +1177,18 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                   </button>
                 )}
                 <span className={`px-2 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 ${
-                  singleExamRoom
+                  singleYearRoom
                     ? "bg-blue-950/40 text-blue-400 border border-blue-900/30"
                     : riskCount > 0
                     ? "bg-amber-950/40 text-amber-400 border border-amber-900/30"
                     : "bg-emerald-950/40 text-emerald-400 border border-emerald-900/30"
                 }`}>
                   <ShieldAlert className="w-3.5 h-3.5" />
-                  {singleExamRoom
-                    ? `Single-exam room — all ${uniqueCourseIds.size > 0 ? [...uniqueCourseIds][0] : ""} students. Horizontal adjacency unavoidable; no anti-cheat risk flagged.`
+                  {singleYearRoom
+                    ? `Single-year room — all students belong to academic year ${uniqueYears.size > 0 ? [...uniqueYears][0] : ""}. Horizontal adjacency unavoidable; no anti-cheat risk flagged.`
                     : riskCount > 0
-                    ? `${riskCount} seat(s) have same-exam students side-by-side (horizontal risk)`
-                    : "No side-by-side same-exam risk — column sharing is permitted"}
+                    ? `${riskCount} seat(s) have same-year students side-by-side (horizontal risk)`
+                    : "No side-by-side same-year risk — column sharing is permitted"}
                 </span>
               </div>
             </div>
@@ -1040,7 +1235,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                         ? "bg-indigo-950/40 border-indigo-400 ring-2 ring-indigo-500/80 shadow-[0_0_15px_rgba(99,102,241,0.35)] print:bg-indigo-100 print:border-indigo-500"
                         : !seat.student
                         ? "bg-[#0A0C10]/40 border-dashed border-slate-850 text-slate-500 hover:border-slate-700 hover:bg-[#0A0C10]/60 print:bg-slate-50 print:border-slate-300 print:text-slate-400"
-                        : seat.isRisk && !singleExamRoom
+                        : seat.isRisk && !singleYearRoom
                         ? "bg-amber-950/30 border-amber-850 text-amber-300 shadow-lg hover:border-amber-700 print:bg-amber-50 print:border-amber-400 print:text-amber-800"
                         : "bg-[#12151C] border-slate-850 text-slate-200 hover:border-slate-700 hover:bg-[#12151C]/60 print:bg-white print:border-slate-300 print:text-slate-800"
                     }`}
@@ -1050,11 +1245,14 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                     {seat.student ? (
                       <>
                         <div className="space-y-1 mt-2.5">
-                          <Users className={`w-5 h-5 mx-auto ${isSelected ? "text-indigo-400 animate-pulse" : (seat.isRisk && !singleExamRoom) ? "text-amber-400 print:text-amber-600" : "text-blue-400 print:text-blue-600"}`} />
+                          <Users className={`w-5 h-5 mx-auto ${isSelected ? "text-indigo-400 animate-pulse" : (seat.isRisk && !singleYearRoom) ? "text-amber-400 print:text-amber-600" : "text-blue-400 print:text-blue-600"}`} />
                           <h5 className="text-[10px] font-bold truncate max-w-[80px] print:text-slate-900" title={seat.student.name}>
                             {seat.student.name}
                           </h5>
-                          <p className="text-[9px] font-mono font-bold text-slate-400 print:text-slate-600">{seat.student.id}</p>
+                          <p className="text-[9px] font-mono font-bold text-slate-400 print:text-slate-600">
+                            {seat.student.id}
+                            {((seat.student as any).branch || (seat.student as any).section) ? ` [${(seat.student as any).branch || ""}${(seat.student as any).section ? `-${(seat.student as any).section}` : ""}]` : ""}
+                          </p>
                         </div>
 
                         {/* Course badge */}
@@ -1062,9 +1260,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                           {seat.course?.id} {seat.course?.branch ? `(${seat.course.branch})` : ""}
                         </div>
 
-                        {/* Proximity Risk badge — only shown when there are multiple exams and a real risk exists */}
-                        {seat.isRisk && !singleExamRoom && (
-                          <span className="absolute bottom-1 right-1 bg-amber-500 text-white rounded-full p-0.5" title="Adjacent seating of same course can facilitate cheating! Consider swapping timeslots or rooms.">
+                        {/* Proximity Risk badge — only shown when there are multiple academic years and a real risk exists */}
+                        {seat.isRisk && !singleYearRoom && (
+                          <span className="absolute bottom-1 right-1 bg-amber-500 text-white rounded-full p-0.5" title="Adjacent seating of same academic year can facilitate cheating! Consider swapping timeslots or rooms.">
                             <AlertTriangle className="w-2.5 h-2.5 text-[#12151C] fill-[#12151C]" />
                           </span>
                         )}
@@ -1101,7 +1299,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             {/* Grid Map Legend */}
             <div className="print:hidden flex flex-col md:flex-row border-t border-slate-800 pt-4 gap-4 justify-center items-center text-[10px] text-slate-400">
               <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#12151C] border border-slate-850 inline-block"></span> Candidate seated safe</span>
-              <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-amber-950/30 border border-amber-800/80 inline-block"></span> Same-exam students side-by-side (horizontal risk only)</span>
+              <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-amber-950/30 border border-amber-800/80 inline-block"></span> Same-year students side-by-side (horizontal risk only)</span>
               <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-emerald-950/20 border border-emerald-900/40 inline-block"></span> Same column OK — vertical sharing allowed</span>
               <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#0A0C10]/40 border border-dashed border-slate-800 inline-block"></span> Unassigned / Open Cushion Space</span>
             </div>
@@ -1124,8 +1322,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 {/* Overflow student list */}
                 <div className="flex-1 space-y-1.5 max-h-48 overflow-y-auto">
                   {overflowStudents.map((stu) => {
-                    const courseId = stu.courses.find((c) => selectedEntries.some((e) => e.courseId === c));
-                    const course = courseId ? courses.find((c) => c.id === courseId) : undefined;
+                    const course = getStudentCourseInSlot(stu);
                     return (
                       <div key={stu.id} className="flex items-center justify-between px-3 py-2 bg-red-950/20 border border-red-900/30 rounded-lg text-xs">
                         <div>
@@ -1172,13 +1369,16 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                           className="flex-grow px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-slate-200"
                         >
                           <option value="">Select target room…</option>
-                          {overflowTargetRooms.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name} ({r.building}) — cap {r.capacity}
-                            </option>
-                          ))}
+                          {overflowTargetRooms.map((r) => {
+                            const isAssigned = activeEntries.some((e) => e.roomId === r.id);
+                            return (
+                              <option key={r.id} value={r.id}>
+                                {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""}) — cap {r.capacity} {isAssigned ? "(Active)" : "(Free)"}
+                              </option>
+                            );
+                          })}
                           {overflowTargetRooms.length === 0 && (
-                            <option disabled>No other rooms in this slot</option>
+                            <option disabled>No other rooms in system</option>
                           )}
                         </select>
                         <button
@@ -1202,7 +1402,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             <div className="p-3.5 bg-blue-950/20 border border-blue-900/40 rounded-xl space-y-1">
               <p className="text-xs font-bold text-blue-300">🛡️ Strict Anti-Cheat Guarantee</p>
               <p className="text-[11px] text-blue-400 leading-normal">
-                Same-exam students may share a <span className="font-bold text-blue-300">column</span> (vertically, top/bottom — OK). The layout engine <span className="font-bold text-emerald-300">strictly prevents</span> same-exam students from sitting <span className="font-bold text-amber-300">side by side</span> horizontally, even when course sizes are unequal.
+                Same-year students may share a <span className="font-bold text-blue-300">column</span> (vertically, top/bottom — OK). The layout engine <span className="font-bold text-emerald-300">strictly prevents</span> same-year students from sitting <span className="font-bold text-amber-300">side by side</span> horizontally, even when course sizes are unequal.
               </p>
             </div>
 
@@ -1221,15 +1421,17 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                   }`}>
                     <div className="space-y-0.5">
                       <p className={`font-bold ${isOverflow ? "text-red-300" : "text-slate-200"}`}>{stu.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">ID: {stu.id}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        ID: {stu.id} {stu.branch ? `| Branch: ${stu.branch}` : ""} {stu.section ? `| Sec: ${stu.section}` : ""}
+                      </p>
                       {isOverflow && <p className="text-[9px] text-red-400 font-semibold">⚠ Overflow — not in grid</p>}
                     </div>
                     <div className="text-right space-y-1">
                       <span className={`px-2 py-0.5 rounded border font-mono text-[9px] font-semibold ${
                         isOverflow ? "bg-red-950 border-red-900/40 text-red-300" : "bg-sky-950 border-sky-900/40 text-sky-400"
                       }`}>
-                        {stu.courses.find((c) => selectedEntries.some((e) => e.courseId === c))}
-                        {courses.find(c => c.id === stu.courses.find((cid) => selectedEntries.some((e) => e.courseId === cid)))?.branch ? ` • ${courses.find(c => c.id === stu.courses.find((cid) => selectedEntries.some((e) => e.courseId === cid)))?.branch}` : ""}
+                        {getStudentCourseInSlot(stu)?.id || "—"}
+                        {getStudentCourseInSlot(stu)?.branch ? ` • ${getStudentCourseInSlot(stu)?.branch}` : ""}
                       </span>
                       {stu.accommodations.length > 0 && (
                         <p className="text-[9px] font-semibold text-amber-400">⏱️ Accommodated</p>

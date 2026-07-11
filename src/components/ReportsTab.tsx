@@ -35,13 +35,43 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
     }
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Course ID,Course Name,Timeslot,Room ID,Room Name,Building,Invigilator ID,Invigilator Name,Enrolled Candidates Count\n";
+    csvContent += "Course ID,Course Name,Timeslot,Room ID,Room Name,Building,Block,Invigilator ID,Invigilator Name,Enrolled Candidates Count\n";
 
     for (const ent of entries) {
       const crs = courses.find((c) => c.id === ent.courseId);
       const rm = rooms.find((r) => r.id === ent.roomId);
       const inv = invigilators.find((i) => i.id === ent.invigilatorId);
-      const enrolled = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      // Calculate proportional enrolled count if scheduled in multiple rooms
+      const courseEntries = entries.filter((e) => e.timeslotId === ent.timeslotId && e.courseId === ent.courseId);
+      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      let enrolled = totalStudents;
+      
+      if (courseEntries.length > 1) {
+        const roomsWithCap = courseEntries.map((e) => {
+          const r = rooms.find((rm) => rm.id === e.roomId);
+          return {
+            id: e.id,
+            roomId: e.roomId,
+            capacity: r?.capacity || 30,
+          };
+        }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+        
+        const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+        
+        let assignedSoFar = 0;
+        for (let i = 0; i <= entIdx; i++) {
+          const rObj = roomsWithCap[i];
+          if (i === entIdx) {
+            if (i === roomsWithCap.length - 1) {
+              enrolled = totalStudents - assignedSoFar;
+            } else {
+              enrolled = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+            }
+          } else {
+            assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
+          }
+        }
+      }
 
       const row = [
         ent.courseId,
@@ -50,6 +80,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
         ent.roomId,
         `"${rm?.name || "N/A"}"`,
         `"${rm?.building || "N/A"}"`,
+        `"${rm?.block || "N/A"}"`,
         ent.invigilatorId || "None",
         `"${inv?.name || "Unassigned"}"`,
         enrolled
@@ -131,13 +162,43 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
         const crs = courses.find((c) => c.id === ent.courseId);
         const rm = rooms.find((r) => r.id === ent.roomId);
         const inv = invigilators.find((i) => i.id === ent.invigilatorId);
-        const enrolledCount = students.filter((s) => s.courses.includes(ent.courseId)).length;
+        // Calculate proportional enrolled count if scheduled in multiple rooms
+        const courseEntries = entries.filter((e) => e.timeslotId === ent.timeslotId && e.courseId === ent.courseId);
+        const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+        let enrolledCount = totalStudents;
+        
+        if (courseEntries.length > 1) {
+          const roomsWithCap = courseEntries.map((e) => {
+            const r = rooms.find((rm) => rm.id === e.roomId);
+            return {
+              id: e.id,
+              roomId: e.roomId,
+              capacity: r?.capacity || 30,
+            };
+          }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+          
+          const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+          
+          let assignedSoFar = 0;
+          for (let i = 0; i <= entIdx; i++) {
+            const rObj = roomsWithCap[i];
+            if (i === entIdx) {
+              if (i === roomsWithCap.length - 1) {
+                enrolledCount = totalStudents - assignedSoFar;
+              } else {
+                enrolledCount = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+              }
+            } else {
+              assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
+            }
+          }
+        }
 
         return [
           ent.courseId,
           crs?.name || "N/A",
           getTimeslotExact(ent.timeslotId, examStartDate),
-          rm ? `${rm.name} (${rm.building})` : "Unassigned / TBD",
+          rm ? `${rm.name} (${rm.building}${rm.block ? ` - ${rm.block}` : ""})` : "Unassigned / TBD",
           inv?.name ? `${inv.name} (ID: ${inv.id})` : "Unassigned Proctor",
           `${enrolledCount} Candidates`,
         ];
@@ -145,7 +206,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
 
       autoTable(doc, {
         startY: 53,
-        head: [["Course Code", "Course Description / Title", "Scheduled Timeslot", "Assigned Venue & Bloc", "Administrative Proctor", "Enrollment"]],
+        head: [["Course Code", "Course Description / Title", "Scheduled Timeslot", "Assigned Venue & Block", "Administrative Proctor", "Enrollment"]],
         body: tableData,
         theme: "striped",
         headStyles: {
@@ -308,7 +369,37 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
     // Find the timeslot with high attendance in this room
     const attendanceMap = new Map<string, number>();
     for (const ent of roomEntries) {
-      const enrolledCount = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      // Calculate proportional enrolled count if scheduled in multiple rooms
+      const courseEntries = entries.filter((e) => e.timeslotId === ent.timeslotId && e.courseId === ent.courseId);
+      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      let enrolledCount = totalStudents;
+      
+      if (courseEntries.length > 1) {
+        const roomsWithCap = courseEntries.map((e) => {
+          const r = rooms.find((rm) => rm.id === e.roomId);
+          return {
+            id: e.id,
+            roomId: e.roomId,
+            capacity: r?.capacity || 30,
+          };
+        }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+        
+        const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+        
+        let assignedSoFar = 0;
+        for (let i = 0; i <= entIdx; i++) {
+          const rObj = roomsWithCap[i];
+          if (i === entIdx) {
+            if (i === roomsWithCap.length - 1) {
+              enrolledCount = totalStudents - assignedSoFar;
+            } else {
+              enrolledCount = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+            }
+          } else {
+            assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
+          }
+        }
+      }
       attendanceMap.set(ent.timeslotId, (attendanceMap.get(ent.timeslotId) || 0) + enrolledCount);
     }
     
@@ -323,7 +414,8 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
       Enrolled: maxAttendance,
       Capacity: room.capacity,
       Utilization: utilPct,
-      Building: room.building
+      Building: room.building,
+      Block: room.block || undefined
     };
   });
 

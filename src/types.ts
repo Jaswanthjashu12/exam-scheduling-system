@@ -19,6 +19,8 @@ export interface Student {
   courses: string[]; // Course IDs
   accommodations: AccommodationType[];
   year?: number; // Academic year (1, 2, 3, or 4)
+  branch?: string;
+  section?: string;
 }
 
 export type AccommodationType = 
@@ -33,6 +35,7 @@ export interface Room {
   capacity: number;
   building: string;
   accessible: boolean;
+  block?: string;
 }
 
 export interface Invigilator {

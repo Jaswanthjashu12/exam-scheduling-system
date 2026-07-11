@@ -14,46 +14,52 @@ console.log('[Mailer] SMTP_USER:', process.env.SMTP_USER || '(not set)');
 console.log('[Mailer] SMTP_PASS:', process.env.SMTP_PASS ? '***set***' : '(not set)');
 console.log('[Mailer] SMTP_FROM:', process.env.SMTP_FROM || '(not set)');
 
-try {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    console.log('[Mailer] Creating SMTP transporter with Gmail config...');
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        // Gmail requires an App Password (not your regular login password).
-        // Generate one at: https://myaccount.google.com/apppasswords
-        // Ensure 2-Step Verification is enabled on the Gmail account first.
-        pass: process.env.SMTP_PASS,
-      },
-      tls: {
-        // Prevent certificate errors in some network environments
-        rejectUnauthorized: false,
-      },
-    });
-    console.log('[Mailer] SMTP transporter created successfully.');
-  } else {
-    console.log('[Mailer] No SMTP config found. Creating Ethereal Test Account...');
-    etherealInitPromise = nodemailer.createTestAccount().then((account: any) => {
+const disableEmails = true; // Hardcoded to true to stop sending mails as requested
+
+if (disableEmails) {
+  console.log('[Mailer] Email sending is DISABLED via environment configuration.');
+} else {
+  try {
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      console.log('[Mailer] Creating SMTP transporter with Gmail config...');
       transporter = nodemailer.createTransport({
-        host: account.smtp.host,
-        port: account.smtp.port,
-        secure: account.smtp.secure,
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: process.env.SMTP_SECURE === 'true',
         auth: {
-          user: account.user,
-          pass: account.pass
-        }
+          user: process.env.SMTP_USER,
+          // Gmail requires an App Password (not your regular login password).
+          // Generate one at: https://myaccount.google.com/apppasswords
+          // Ensure 2-Step Verification is enabled on the Gmail account first.
+          pass: process.env.SMTP_PASS,
+        },
+        tls: {
+          // Prevent certificate errors in some network environments
+          rejectUnauthorized: false,
+        },
       });
-      isEthereal = true;
-      console.log('[Mailer] Ethereal Email test account created successfully!');
-    }).catch((err: any) => {
-      console.warn('[Mailer] Failed to create Ethereal account, falling back to console:', err);
-    });
+      console.log('[Mailer] SMTP transporter created successfully.');
+    } else {
+      console.log('[Mailer] No SMTP config found. Creating Ethereal Test Account...');
+      etherealInitPromise = nodemailer.createTestAccount().then((account: any) => {
+        transporter = nodemailer.createTransport({
+          host: account.smtp.host,
+          port: account.smtp.port,
+          secure: account.smtp.secure,
+          auth: {
+            user: account.user,
+            pass: account.pass
+          }
+        });
+        isEthereal = true;
+        console.log('[Mailer] Ethereal Email test account created successfully!');
+      }).catch((err: any) => {
+        console.warn('[Mailer] Failed to create Ethereal account, falling back to console:', err);
+      });
+    }
+  } catch (e) {
+    console.warn('[Mailer] Nodemailer failed to initialize – email will be logged to console', e);
   }
-} catch (e) {
-  console.warn('[Mailer] Nodemailer failed to initialize – email will be logged to console', e);
 }
 
 /**
@@ -61,6 +67,16 @@ try {
  * otherwise it falls back to logging the email contents.
  */
 export async function sendMail(to: string, subject: string, html: string): Promise<string | void> {
+  if (disableEmails) {
+    console.log(`[Mailer] [DISABLED] Skipped sending email to "${to}" (Subject: "${subject}")`);
+    console.log('=== Email Notification (SIMULATED) ===');
+    console.log('To:', to);
+    console.log('Subject:', subject);
+    console.log('Body:', html);
+    console.log('=== End Email ===');
+    return 'https://ethereal.email/message/disabled-in-env';
+  }
+
   if (etherealInitPromise) await etherealInitPromise;
   
   console.log(`[Mailer] sendMail called → To: "${to}", Subject: "${subject}"`);

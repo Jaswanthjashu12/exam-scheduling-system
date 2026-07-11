@@ -74,6 +74,7 @@ export default function ConfigurationTab({
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomCapacity, setNewRoomCapacity] = useState(30);
   const [newRoomBuilding, setNewRoomBuilding] = useState("Science Plaza");
+  const [newRoomBlock, setNewRoomBlock] = useState("");
   const [newRoomAccessible, setNewRoomAccessible] = useState(true);
 
   // New student input state
@@ -81,6 +82,8 @@ export default function ConfigurationTab({
   const [newStudentName, setNewStudentName] = useState("");
   const [newStudentEmail, setNewStudentEmail] = useState("");
   const [newStudentYear, setNewStudentYear] = useState<number>(1);
+  const [newStudentBranch, setNewStudentBranch] = useState("CSE");
+  const [newStudentSection, setNewStudentSection] = useState("A");
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [selectedAccs, setSelectedAccs] = useState<AccommodationType[]>([]);
   const [studentFilterYear, setStudentFilterYear] = useState<string>("all");
@@ -193,6 +196,7 @@ export default function ConfigurationTab({
     setNewRoomName(room.name);
     setNewRoomCapacity(room.capacity);
     setNewRoomBuilding(room.building);
+    setNewRoomBlock(room.block || "");
     setNewRoomAccessible(room.accessible);
     window.scrollTo({ top: 350, behavior: "smooth" });
   };
@@ -201,6 +205,7 @@ export default function ConfigurationTab({
     setEditingRoomId(null);
     setNewRoomId("");
     setNewRoomName("");
+    setNewRoomBlock("");
   };
 
   const handleEditStudentClick = (student: Student) => {
@@ -211,6 +216,8 @@ export default function ConfigurationTab({
     setSelectedCourses(student.courses);
     setSelectedAccs(student.accommodations);
     setNewStudentYear(student.year || 1);
+    setNewStudentBranch(student.branch || "CSE");
+    setNewStudentSection(student.section || "A");
     window.scrollTo({ top: 350, behavior: "smooth" });
   };
 
@@ -222,6 +229,8 @@ export default function ConfigurationTab({
     setSelectedCourses([]);
     setSelectedAccs([]);
     setNewStudentYear(1);
+    setNewStudentBranch("CSE");
+    setNewStudentSection("A");
   };
 
   const handleEditInvigilatorClick = (invig: Invigilator) => {
@@ -331,10 +340,12 @@ export default function ConfigurationTab({
         capacity: Number(newRoomCapacity),
         building: newRoomBuilding,
         accessible: newRoomAccessible,
+        block: newRoomBlock,
       } : r));
       setEditingRoomId(null);
       setNewRoomId("");
       setNewRoomName("");
+      setNewRoomBlock("");
     } else {
       if (rooms.some((r) => r.id === newRoomId)) {
         alert("A room with this ID already exists.");
@@ -346,10 +357,12 @@ export default function ConfigurationTab({
         capacity: Number(newRoomCapacity),
         building: newRoomBuilding,
         accessible: newRoomAccessible,
+        block: newRoomBlock,
       };
       setRooms([...rooms, room]);
       setNewRoomId("");
       setNewRoomName("");
+      setNewRoomBlock("");
     }
   };
 
@@ -359,6 +372,7 @@ export default function ConfigurationTab({
       setEditingRoomId(null);
       setNewRoomId("");
       setNewRoomName("");
+      setNewRoomBlock("");
     }
   };
 
@@ -374,6 +388,8 @@ export default function ConfigurationTab({
         courses: selectedCourses,
         accommodations: selectedAccs,
         year: Number(newStudentYear),
+        branch: newStudentBranch,
+        section: newStudentSection,
       } : s));
       setEditingStudentId(null);
       setNewStudentId("");
@@ -382,6 +398,8 @@ export default function ConfigurationTab({
       setSelectedCourses([]);
       setSelectedAccs([]);
       setNewStudentYear(1);
+      setNewStudentBranch("CSE");
+      setNewStudentSection("A");
     } else {
       if (students.some((s) => s.id === newStudentId)) {
         alert("A student with this ID already exists.");
@@ -394,6 +412,8 @@ export default function ConfigurationTab({
         courses: selectedCourses,
         accommodations: selectedAccs,
         year: Number(newStudentYear),
+        branch: newStudentBranch,
+        section: newStudentSection,
       };
       setStudents([...students, student]);
       setNewStudentId("");
@@ -402,6 +422,8 @@ export default function ConfigurationTab({
       setSelectedCourses([]);
       setSelectedAccs([]);
       setNewStudentYear(1);
+      setNewStudentBranch("CSE");
+      setNewStudentSection("A");
     }
   };
 
@@ -415,6 +437,8 @@ export default function ConfigurationTab({
       setSelectedCourses([]);
       setSelectedAccs([]);
       setNewStudentYear(1);
+      setNewStudentBranch("CSE");
+      setNewStudentSection("A");
     }
   };
 
@@ -874,34 +898,7 @@ export default function ConfigurationTab({
                     <option value={4} className="bg-[#12151C]">Year 4 (Senior)</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1.5 font-semibold uppercase tracking-wide">Duration (mins)</label>
-                    <select
-                      value={newCourseDuration}
-                      onChange={(e) => setNewCourseDuration(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
-                    >
-                      <option value={90} className="bg-[#12151C] text-slate-200">90 Min</option>
-                      <option value={120} className="bg-[#12151C] text-slate-200">120 Min</option>
-                      <option value={150} className="bg-[#12151C] text-slate-200">150 Min</option>
-                      <option value={180} className="bg-[#12151C] text-slate-200">180 Min</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1.5 font-semibold uppercase tracking-wide">Priority</label>
-                    <select
-                      value={newCoursePriority}
-                      onChange={(e) => setNewCoursePriority(e.target.value as any)}
-                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-semibold"
-                    >
-                      <option value="High" className="bg-[#12151C]">🔴 High</option>
-                      <option value="Medium" className="bg-[#12151C]">🟡 Medium</option>
-                      <option value="Low" className="bg-[#12151C]">🟢 Low</option>
-                    </select>
-                  </div>
-                </div>
-                
+
                 <div className="space-y-2 pt-2 border-t border-slate-805">
                   <button
                     type="submit"
@@ -979,8 +976,6 @@ export default function ConfigurationTab({
                         <th className="px-4 py-3">Name</th>
                         <th className="px-4 py-3">Branch</th>
                         <th className="px-4 py-3">Year</th>
-                        <th className="px-4 py-3">Duration</th>
-                        <th className="px-4 py-3">Priority</th>
                         <th className="px-4 py-3">Enrollments</th>
                         <th className="px-4 py-3 text-right">Action</th>
                       </tr>
@@ -996,7 +991,7 @@ export default function ConfigurationTab({
                         if (filteredCourses.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                              <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                                 No courses found matching the active filters. Change filter or add a course!
                               </td>
                             </tr>
@@ -1017,15 +1012,6 @@ export default function ConfigurationTab({
                               <td className="px-4 py-2.5">
                                 <span className="px-2 py-0.5 rounded bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 text-[10px] font-semibold">
                                   Year {course.year || 1}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-slate-400">{course.duration} minutes</td>
-                              <td className="px-4 py-2.5">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  course.priority === "High" ? "bg-rose-950/40 text-rose-400 border border-rose-900/40" :
-                                  course.priority === "Medium" ? "bg-amber-950/40 text-amber-400 border border-amber-900/40" : "bg-emerald-950/40 text-emerald-400 border border-emerald-900/40"
-                                }`}>
-                                  {course.priority}
                                 </span>
                               </td>
                               <td className="px-4 py-2.5 text-slate-300 font-semibold">{enrolled} students</td>
@@ -1089,7 +1075,7 @@ export default function ConfigurationTab({
                     className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-slate-400 mb-1.5">Capacity</label>
                     <input
@@ -1099,7 +1085,7 @@ export default function ConfigurationTab({
                       max={150}
                       value={newRoomCapacity}
                       onChange={(e) => setNewRoomCapacity(Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none"
+                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                   <div>
@@ -1110,8 +1096,24 @@ export default function ConfigurationTab({
                       placeholder="e.g. Science Quad"
                       value={newRoomBuilding}
                       onChange={(e) => setNewRoomBuilding(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none"
+                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Block Number</label>
+                    <select
+                      value={newRoomBlock}
+                      onChange={(e) => setNewRoomBlock(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">No Block</option>
+                      <option value="Block 1">Block 1</option>
+                      <option value="Block 2">Block 2</option>
+                      <option value="Block 3">Block 3</option>
+                      <option value="Block 4">Block 4</option>
+                      <option value="Block 5">Block 5</option>
+                      <option value="Block 6">Block 6</option>
+                    </select>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
@@ -1163,6 +1165,7 @@ export default function ConfigurationTab({
                         <th className="px-4 py-3">Name</th>
                         <th className="px-4 py-3">Capacity limit</th>
                         <th className="px-4 py-3">Building</th>
+                        <th className="px-4 py-3">Block</th>
                         <th className="px-4 py-3">Accessibility</th>
                         <th className="px-4 py-3 text-right">Action</th>
                       </tr>
@@ -1174,6 +1177,7 @@ export default function ConfigurationTab({
                           <td className="px-4 py-2.5 font-medium text-slate-200">{room.name}</td>
                           <td className="px-4 py-2.5 font-semibold text-slate-400">{room.capacity} seats</td>
                           <td className="px-4 py-2.5 text-slate-400">{room.building}</td>
+                          <td className="px-4 py-2.5 text-slate-400 font-semibold">{room.block || "—"}</td>
                           <td className="px-4 py-2.5">
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
                               room.accessible ? "bg-emerald-950/40 border border-emerald-900/30 text-emerald-400" : "bg-slate-900 text-slate-500"
@@ -1264,6 +1268,34 @@ export default function ConfigurationTab({
                     <option value={3} className="bg-[#12151C]">Year 3 (Junior)</option>
                     <option value={4} className="bg-[#12151C]">Year 4 (Senior)</option>
                   </select>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Branch</label>
+                    <select
+                      value={newStudentBranch}
+                      onChange={(e) => setNewStudentBranch(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
+                    >
+                      <option value="CSE" className="bg-[#12151C]">CSE</option>
+                      <option value="ECE" className="bg-[#12151C]">ECE</option>
+                      <option value="EEE" className="bg-[#12151C]">EEE</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Section</label>
+                    <select
+                      value={newStudentSection}
+                      onChange={(e) => setNewStudentSection(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
+                    >
+                      <option value="A" className="bg-[#12151C]">Section A</option>
+                      <option value="B" className="bg-[#12151C]">Section B</option>
+                      <option value="C" className="bg-[#12151C]">Section C</option>
+                      <option value="D" className="bg-[#12151C]">Section D</option>
+                    </select>
+                  </div>
                 </div>
                 
                 {/* Course select list */}
@@ -1403,7 +1435,8 @@ export default function ConfigurationTab({
                         <th className="px-4 py-3">Student ID</th>
                         <th className="px-4 py-3">Name</th>
                         <th className="px-4 py-3">Year</th>
-                        <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">Branch</th>
+                        <th className="px-4 py-3">Section</th>
                         <th className="px-4 py-3">Enrolled Exam Classes</th>
                         <th className="px-4 py-3">Special Accommodations</th>
                         <th className="px-4 py-3 text-right">Action</th>
@@ -1418,7 +1451,7 @@ export default function ConfigurationTab({
                         if (filteredStudents.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                              <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                                 No students found matching the selected filters.
                               </td>
                             </tr>
@@ -1428,18 +1461,31 @@ export default function ConfigurationTab({
                         return filteredStudents.map((student) => (
                           <tr key={student.id} className="hover:bg-slate-800/10">
                             <td className="px-4 py-2.5 font-mono font-semibold text-white">{student.id}</td>
-                            <td className="px-4 py-2.5 font-medium text-slate-200">{student.name}</td>
+                            <td className="px-4 py-2.5 font-medium text-slate-200">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-200">{student.name}</span>
+                                {student.email && (
+                                  <a href={`mailto:${student.email}`} className="text-[10px] text-slate-500 hover:text-blue-400 transition truncate max-w-[200px]">
+                                    {student.email}
+                                  </a>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-4 py-2.5">
                               <span className="px-2 py-0.5 rounded bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 text-[10px] font-semibold">
                                 Year {student.year || 1}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-slate-400">
-                               {student.email
-                                 ? <a href={`mailto:${student.email}`} className="text-blue-400 hover:text-blue-300 hover:underline transition">{student.email}</a>
-                                 : <span className="text-slate-600 italic text-[11px]">—</span>
-                               }
-                             </td>
+                            <td className="px-4 py-2.5">
+                              <span className="px-2 py-0.5 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-900/30 text-[10px] font-semibold uppercase">
+                                {student.branch || "—"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className="px-2 py-0.5 rounded bg-amber-950/40 text-amber-400 border border-amber-900/30 text-[10px] font-semibold uppercase">
+                                Section {student.section || "—"}
+                              </span>
+                            </td>
                             <td className="px-4 py-2.5 font-medium">
                               <div className="flex flex-wrap gap-1">
                                 {student.courses.map((c) => (

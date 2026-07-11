@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
+import fs from 'fs';
 import {
   createStudent, createCourse, createRoom, createInvigilator,
   getAllStudents, getAllCourses, getAllRooms, getAllInvigilators,
@@ -78,6 +79,8 @@ router.post('/students', upload.single('file'), async (req, res, next) => {
 
     const mode = (req.body?.mode || 'append') as 'append' | 'replace';
     const rows = parseExcelBuffer(req.file.buffer, req.file.originalname);
+    
+
 
     if (rows.length === 0) {
       return res.status(400).json({ error: 'File contains no data rows' });
@@ -101,17 +104,22 @@ router.post('/students', upload.single('file'), async (req, res, next) => {
       const row = rows[i];
       const rowNum = i + 2; // +2 for header row + 0-index
 
-      const id = findValue(row, ['id', 'studentid', 'rollno', 'rollnumber', 'enrollmentno', 'enrollment', 'regno', 'registrationno']);
-      const name = findValue(row, ['name', 'fullname', 'studentname', 'firstname']);
+      const id = findValue(row, ['id', 'studentid', 'rollno', 'rollnumber', 'enrollmentno', 'enrollment', 'regno', 'registrationno', 'roll', 'studentcode', 'idno', 'idnumber']);
+      const name = findValue(row, ['name', 'fullname', 'studentname', 'firstname', 'names']);
       const email = findValue(row, ['email', 'emailid', 'emailaddress', 'mail']);
-      const coursesRaw = findValue(row, ['courses', 'enrolledcourses', 'subjects', 'coursecodes', 'courseids', 'examcourses']);
-      const accsRaw = findValue(row, ['accommodations', 'specialaccommodations', 'accommodation', 'specialneeds', 'needs', 'disability']);
-      const year = findNumericValue(row, ['year', 'studentyear', 'academicyear', 'classyear', 'studyyear'], 1);
+      const coursesRaw = findValue(row, [
+        'courses', 'enrolledcourses', 'subjects', 'coursecodes', 'courseids', 'examcourses',
+        'course', 'enrolledcourse', 'subject', 'coursecode', 'courseid', 'examcourse',
+        'registeredcourses', 'registeredcourse', 'enrolment', 'enrollment',
+        'cources', 'cource'
+      ]);
+      const accsRaw = findValue(row, ['accommodations', 'specialaccommodations', 'accommodation', 'specialneeds', 'needs', 'disability', 'accommodationslist']);
+      const year = findNumericValue(row, ['year', 'studentyear', 'academicyear', 'classyear', 'studyyear', 'class'], 1);
+      const branch = findValue(row, ['branch', 'studentbranch', 'department', 'stream', 'major', 'dept']) || '';
+      const section = findValue(row, ['section', 'studentsection', 'classsection', 'sec', 'classsec']) || '';
 
       if (!id) { errors.push(`Row ${rowNum}: Missing student ID`); continue; }
       if (!name) { errors.push(`Row ${rowNum}: Missing student name`); continue; }
-      if (existingIds.has(id.toUpperCase())) { errors.push(`Row ${rowNum}: Duplicate ID '${id}' — skipped`); continue; }
-
       // Parse courses: comma-separated or semicolon-separated
       const courses = coursesRaw
         ? coursesRaw.split(/[,;|]+/).map(c => c.trim().toUpperCase()).filter(Boolean)
@@ -124,7 +132,28 @@ router.post('/students', upload.single('file'), async (req, res, next) => {
           .filter(a => validAccommodations.includes(a as AccommodationType)) as AccommodationType[]
         : [];
 
-      const student: Student = { id: id.toUpperCase(), name, email: email || undefined, courses, accommodations, year: year >= 1 && year <= 4 ? year : 1 };
+      const student: Student = { 
+        id: id.toUpperCase(), 
+        name, 
+        email: email || undefined, 
+        courses, 
+        accommodations, 
+        year: year >= 1 && year <= 4 ? year : 1,
+        branch: branch || undefined,
+        section: section || undefined
+      };
+
+
+
+      if (existingIds.has(id.toUpperCase())) {
+        try {
+          await updateStudent(student.id, student);
+          imported.push(student);
+        } catch (err: any) {
+          errors.push(`Row ${rowNum}: Failed to update existing student '${id}': ${err.message}`);
+        }
+        continue;
+      }
 
       try {
         await createStudent(student);
@@ -340,7 +369,8 @@ router.post('/rooms', upload.single('file'), async (req, res, next) => {
       const id = findValue(row, ['id', 'roomid', 'roomcode', 'roomno', 'hallid', 'code']);
       const name = findValue(row, ['name', 'roomname', 'hallname', 'venuename', 'venue']);
       const capacity = findNumericValue(row, ['capacity', 'seats', 'maxcapacity', 'seatcount', 'totalseats'], 30);
-      const building = findValue(row, ['building', 'block', 'buildingname', 'wing', 'location']) || 'Main Building';
+      const building = findValue(row, ['building', 'buildingname', 'location']) || 'Main Building';
+      const block = findValue(row, ['block', 'blocknumber', 'blockno', 'wing']) || '';
       const accessible = findBoolValue(row, ['accessible', 'wheelchair', 'handicapaccessible', 'accessibility', 'wheelchairaccessible'], false);
 
       if (!id) { errors.push(`Row ${rowNum}: Missing room ID`); continue; }
@@ -352,6 +382,7 @@ router.post('/rooms', upload.single('file'), async (req, res, next) => {
         name,
         capacity,
         building,
+        block,
         accessible
       };
 
@@ -390,9 +421,9 @@ router.get('/template/:type', (req, res) => {
   switch (type) {
     case 'students':
       sheetData = [
-        { 'Student ID': 'STU-001', 'Name': 'John Doe', 'Year': 1, 'Courses': 'CS-101, MATH-201', 'Accommodations': 'extra_time' },
-        { 'Student ID': 'STU-002', 'Name': 'Jane Smith', 'Year': 2, 'Courses': 'PHY-302, BIO-105', 'Accommodations': '' },
-        { 'Student ID': 'STU-003', 'Name': 'Alex Kumar', 'Year': 3, 'Courses': 'CS-101, PHY-302', 'Accommodations': 'separate_room, accessible' },
+        { 'Student ID': 'STU-001', 'Name': 'John Doe', 'Year': 1, 'Branch': 'CSE', 'Section': 'A', 'Courses': 'CS-101, MATH-201', 'Accommodations': 'extra_time' },
+        { 'Student ID': 'STU-002', 'Name': 'Jane Smith', 'Year': 2, 'Branch': 'ECE', 'Section': 'B', 'Courses': 'PHY-302, BIO-105', 'Accommodations': '' },
+        { 'Student ID': 'STU-003', 'Name': 'Alex Kumar', 'Year': 3, 'Branch': 'EEE', 'Section': 'C', 'Courses': 'CS-101, PHY-302', 'Accommodations': 'separate_room, accessible' },
       ];
       break;
     case 'invigilators':
@@ -410,9 +441,9 @@ router.get('/template/:type', (req, res) => {
       break;
     case 'rooms':
       sheetData = [
-        { 'Room ID': 'R-101', 'Name': 'Main Auditorium', 'Capacity': 80, 'Building': 'Main Hall', 'Accessible': 'Yes' },
-        { 'Room ID': 'R-102', 'Name': 'Science Lab', 'Capacity': 30, 'Building': 'Science Tower', 'Accessible': 'No' },
-        { 'Room ID': 'R-103', 'Name': 'Seminar Room 1A', 'Capacity': 15, 'Building': 'West Annex', 'Accessible': 'Yes' },
+        { 'Room ID': 'R-101', 'Name': 'Main Auditorium', 'Capacity': 80, 'Building': 'Main Hall', 'Block': 'Block A', 'Accessible': 'Yes' },
+        { 'Room ID': 'R-102', 'Name': 'Science Lab', 'Capacity': 30, 'Building': 'Science Tower', 'Block': 'Block B', 'Accessible': 'No' },
+        { 'Room ID': 'R-103', 'Name': 'Seminar Room 1A', 'Capacity': 15, 'Building': 'West Annex', 'Block': 'Block C', 'Accessible': 'Yes' },
       ];
       break;
     default:

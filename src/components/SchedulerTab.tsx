@@ -64,7 +64,10 @@ export default function SchedulerTab({
   const [selectedUnscheduledCourse, setSelectedUnscheduledCourse] = useState<string | null>(null);
   const [unschedSlotId, setUnschedSlotId] = useState("");
   const [unschedRoomId, setUnschedRoomId] = useState("");
+  const [unschedRoomIds, setUnschedRoomIds] = useState<string[]>([]);
   const [unschedInvigId, setUnschedInvigId] = useState("");
+  const [unschedDuration, setUnschedDuration] = useState(120);
+  const [unschedPriority, setUnschedPriority] = useState<"High" | "Medium" | "Low">("Medium");
   const [quickScheduleError, setQuickScheduleError] = useState<string | null>(null);
 
   // Dynamic Exam Creation & Direct Scheduling states
@@ -174,41 +177,47 @@ export default function SchedulerTab({
     setSelectedUnscheduledCourse(courseId);
     setUnschedSlotId(DEFAULT_TIMESLOTS[0]?.id || "");
     setUnschedRoomId(rooms[0]?.id || "");
+    setUnschedRoomIds(rooms[0] ? [rooms[0].id] : []);
     setUnschedInvigId(invigilators[0]?.id || "");
+    const targetCourse = courses.find((c) => c.id === courseId);
+    if (targetCourse) {
+      setUnschedDuration(targetCourse.duration || 120);
+      setUnschedPriority(targetCourse.priority || "Medium");
+    }
     setQuickScheduleError(null);
   };
 
   const handleSaveQuickSchedule = () => {
     if (!selectedUnscheduledCourse) return;
-    if (!unschedSlotId || !unschedRoomId) {
-      setQuickScheduleError("Please select both a timeslot and a room.");
+    if (!unschedSlotId || unschedRoomIds.length === 0) {
+      setQuickScheduleError("Please select both a timeslot and at least one room.");
       return;
     }
+
+    // Update the course duration and priority in the courses list
+    if (setCourses) {
+      setCourses((prev) =>
+        prev.map((c) =>
+          c.id === selectedUnscheduledCourse
+            ? { ...c, duration: unschedDuration, priority: unschedPriority }
+            : c
+        )
+      );
+    }
     
-    // Find if there's already an entry for this course, update it; otherwise create a new one
+    // Replace all existing entries for this course with the new room assignments
     setEntries((prev) => {
-      const existingIdx = prev.findIndex((e) => e.courseId === selectedUnscheduledCourse);
-      if (existingIdx > -1) {
-        const updated = [...prev];
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          timeslotId: unschedSlotId,
-          roomId: unschedRoomId,
-          invigilatorId: unschedInvigId,
-        };
-        return updated;
-      } else {
-        return [
-          ...prev,
-          {
-            id: `ent_${selectedUnscheduledCourse}`,
-            courseId: selectedUnscheduledCourse,
-            timeslotId: unschedSlotId,
-            roomId: unschedRoomId,
-            invigilatorId: unschedInvigId,
-          }
-        ];
-      }
+      const filtered = prev.filter((e) => e.courseId !== selectedUnscheduledCourse);
+      
+      const newEntries = unschedRoomIds.map((rId, idx) => ({
+        id: `ent_${selectedUnscheduledCourse}_${rId}`,
+        courseId: selectedUnscheduledCourse,
+        timeslotId: unschedSlotId,
+        roomId: rId,
+        invigilatorId: idx === 0 ? unschedInvigId : "", // default proctor to the first room
+      }));
+
+      return [...filtered, ...newEntries];
     });
 
     // Reset selection state
@@ -231,7 +240,7 @@ export default function SchedulerTab({
         const crs = currentCourses.find(c => c.id === entry.courseId);
         const rm = currentRooms.find(r => r.id === entry.roomId);
         const tsLabel = getTimeslotExact(entry.timeslotId, examStartDate);
-        const roomLabel = rm ? `${rm.name} (${rm.building})` : entry.roomId;
+        const roomLabel = rm ? `${rm.name} (${rm.building}${rm.block ? ` - ${rm.block}` : ""})` : entry.roomId;
         await api.notifyExamAssignment({
           courseId: entry.courseId,
           courseName: crs?.name,
@@ -385,7 +394,7 @@ export default function SchedulerTab({
         id: `email_stu_${Date.now()}`,
         type: "Email" as const,
         to: "dineshkumarasapu@gmail.com",
-        text: `📅 Exam Date published: Course "${crs?.name || editingEntry.courseId}" rescheduled to Day ${ts?.day || 1} ${ts?.period} inside Building Hall "${rm?.building || "Main Arc"} - Room ${rm?.name || moveRoomId}".`,
+        text: `📅 Exam Date published: Course "${crs?.name || editingEntry.courseId}" rescheduled to Day ${ts?.day || 1} ${ts?.period} inside Building Hall "${rm?.building || "Main Arc"}${rm?.block ? ` - ${rm?.block}` : ""} - Room ${rm?.name || moveRoomId}".`,
         sent: false,
       },
       {
@@ -405,7 +414,7 @@ export default function SchedulerTab({
     if (moveSlotId && moveRoomId) {
       try {
         const tsLabel = getTimeslotExact(moveSlotId, examStartDate);
-        const roomLabel = rm ? `${rm.name} (${rm.building})` : moveRoomId;
+        const roomLabel = rm ? `${rm.name} (${rm.building}${rm.block ? ` - ${rm.block}` : ""})` : moveRoomId;
         api.notifyExamAssignment({
           courseId: editingEntry.courseId,
           courseName: crs?.name,
@@ -898,7 +907,38 @@ export default function SchedulerTab({
                       const course = courses.find((c) => c.id === ent.courseId);
                       const room = rooms.find((r) => r.id === ent.roomId);
                       const inv = invigilators.find((i) => i.id === ent.invigilatorId);
-                      const studCount = students.filter((s) => s.courses.includes(ent.courseId)).length;
+                      
+                      // Calculate the student count for this room if course is scheduled in multiple rooms
+                      const courseEntries = slotEntries.filter((e) => e.courseId === ent.courseId);
+                      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+                      let studCount = totalStudents;
+                      
+                      if (courseEntries.length > 1) {
+                        const roomsWithCap = courseEntries.map((e) => {
+                          const r = rooms.find((rm) => rm.id === e.roomId);
+                          return {
+                            id: e.id,
+                            roomId: e.roomId,
+                            capacity: r?.capacity || 30,
+                          };
+                        }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+                        
+                        const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+                        
+                        let assignedSoFar = 0;
+                        for (let i = 0; i <= entIdx; i++) {
+                          const rObj = roomsWithCap[i];
+                          if (i === entIdx) {
+                            if (i === roomsWithCap.length - 1) {
+                              studCount = totalStudents - assignedSoFar;
+                            } else {
+                              studCount = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+                            }
+                          } else {
+                            assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
+                          }
+                        }
+                      }
 
                       return (
                         <div key={ent.id} className="p-3 bg-[#12151C] rounded-lg border border-slate-800 shadow-sm space-y-2 hover:border-slate-700 transition group relative">
@@ -1021,19 +1061,32 @@ export default function SchedulerTab({
 
                         {/* Room option */}
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block">Room</label>
-                          <select
-                            value={unschedRoomId}
-                            onChange={(e) => setUnschedRoomId(e.target.value)}
-                            className="w-full bg-[#0A0C10] border border-slate-750 border-slate-700 rounded p-1 text-[11px] text-slate-200"
-                          >
-                            {rooms.length === 0 && <option value="">-- No Rooms Available --</option>}
-                            {rooms.map((room) => (
-                              <option key={room.id} value={room.id}>
-                                {room.name} (Cap: {room.capacity})
-                              </option>
-                            ))}
-                          </select>
+                          <label className="text-[9px] font-bold text-slate-400 uppercase block">Rooms (Select Multiple)</label>
+                          <div className="grid grid-cols-2 gap-1.5 max-h-28 overflow-y-auto border border-slate-750 border-slate-700 rounded p-2 bg-[#0A0C10]">
+                            {rooms.length === 0 && (
+                              <span className="text-[10px] text-slate-500 col-span-2">No Rooms Available</span>
+                            )}
+                            {rooms.map((room) => {
+                              const isChecked = unschedRoomIds.includes(room.id);
+                              return (
+                                <label key={room.id} className="flex items-center gap-1.5 text-[10px] text-slate-200 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setUnschedRoomIds([...unschedRoomIds, room.id]);
+                                      } else {
+                                        setUnschedRoomIds(unschedRoomIds.filter((id) => id !== room.id));
+                                      }
+                                    }}
+                                    className="accent-blue-500 rounded cursor-pointer"
+                                  />
+                                  <span className="truncate" title={room.name}>{room.name} ({room.capacity})</span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         {/* Invigilator option */}
@@ -1051,6 +1104,35 @@ export default function SchedulerTab({
                               </option>
                             ))}
                           </select>
+                        </div>
+
+                        {/* Duration and Priority option */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Duration (mins)</label>
+                            <select
+                              value={unschedDuration}
+                              onChange={(e) => setUnschedDuration(Number(e.target.value))}
+                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
+                            >
+                              <option value={90}>90 Min</option>
+                              <option value={120}>120 Min</option>
+                              <option value={150}>150 Min</option>
+                              <option value={180}>180 Min</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Priority</label>
+                            <select
+                              value={unschedPriority}
+                              onChange={(e) => setUnschedPriority(e.target.value as any)}
+                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
+                            >
+                              <option value="High">🔴 High</option>
+                              <option value="Medium">🟡 Medium</option>
+                              <option value="Low">🟢 Low</option>
+                            </select>
+                          </div>
                         </div>
 
                         {quickScheduleError && (
@@ -1185,7 +1267,7 @@ export default function SchedulerTab({
                 >
                   {rooms.map((rm) => (
                     <option key={rm.id} value={rm.id} className="bg-[#12151C] text-slate-200">
-                      {rm.name} - Cap: {rm.capacity} seats ({rm.building})
+                      {rm.name} - Cap: {rm.capacity} seats ({rm.building}{rm.block ? ` - ${rm.block}` : ""})
                     </option>
                   ))}
                 </select>

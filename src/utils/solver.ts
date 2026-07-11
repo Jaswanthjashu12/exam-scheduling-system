@@ -145,7 +145,7 @@ export function getCourseEnrollment(
 }
 
 /**
- * Calculates the number of same-exam horizontal adjacencies for a given room's default seating layout
+ * Calculates the number of same-year horizontal adjacencies for a given room's default seating layout
  */
 export function getSeatingRiskCount(
   room: Room,
@@ -169,8 +169,17 @@ export function getSeatingRiskCount(
   const gridTotalSeats = numRows * numCols;
   const defaultArr: (string | null)[] = new Array(gridTotalSeats).fill(null);
 
-  // Build a studentId->courseId map for O(1) lookups in the grid
-  const studentCourseMap = new Map<string, string>();
+  // Build a courseId -> year mapping
+  const courseYearMap = new Map<string, number>();
+  for (const c of coursesInRoom) {
+    courseYearMap.set(c.id, c.year || 1);
+  }
+
+  // Helper to get student's academic year
+  const getStudentYear = (s: Student, cid: string): number => {
+    if (s.year !== undefined && s.year !== null) return s.year;
+    return courseYearMap.get(cid) || 1;
+  };
 
   // Group students by course ID, sorted by roll number
   const groups: Record<string, Student[]> = {};
@@ -178,7 +187,6 @@ export function getSeatingRiskCount(
     const cid = s.courses.find((c) => activeCourseIds.has(c)) || "unknown";
     if (!groups[cid]) groups[cid] = [];
     groups[cid].push(s);
-    studentCourseMap.set(s.id, cid);
   }
   for (const cid of Object.keys(groups)) {
     groups[cid].sort((a, b) => a.id.localeCompare(b.id));
@@ -190,28 +198,31 @@ export function getSeatingRiskCount(
   const courseIds = Object.keys(queues);
 
   // --- Zero-Adjacency Row-Scan Greedy Allocator ---
-  // Track course assignment per grid position for O(1) neighbor check
-  const gridCourse: (string | null)[] = new Array(gridTotalSeats).fill(null);
+  // Track year assignment per grid position for O(1) neighbor check
+  const gridYear: (number | null)[] = new Array(gridTotalSeats).fill(null);
 
   for (let r = 0; r < numRows; r++) {
     for (let c = 0; c < numCols; c++) {
       const idx = r * numCols + c;
 
-      // Determine the course of the left neighbour via grid lookup (O(1))
-      const leftCid = c > 0 ? gridCourse[idx - 1] : null;
+      // Determine the year of the left neighbour via grid lookup (O(1))
+      const leftYear = c > 0 ? gridYear[idx - 1] : null;
 
-      // Pick the course with the most students remaining that ≠ leftCid
+      // Pick the course with the most students remaining whose year is DIFFERENT from leftYear
       let bestCid: string | null = null;
       let bestCount = -1;
       for (const cid of courseIds) {
-        if (queues[cid].length > 0 && cid !== leftCid) {
-          if (queues[cid].length > bestCount) {
-            bestCount = queues[cid].length;
-            bestCid = cid;
+        if (queues[cid].length > 0) {
+          const cYear = courseYearMap.get(cid) || 1;
+          if (cYear !== leftYear) {
+            if (queues[cid].length > bestCount) {
+              bestCount = queues[cid].length;
+              bestCid = cid;
+            }
           }
         }
       }
-      // Fallback: only 1 course remains and it equals leftCid
+      // Fallback: only courses of same year remain
       if (bestCid === null) {
         for (const cid of courseIds) {
           if (queues[cid].length > 0) { bestCid = cid; break; }
@@ -221,23 +232,30 @@ export function getSeatingRiskCount(
       if (bestCid && queues[bestCid].length > 0) {
         const stu = queues[bestCid].shift()!;
         defaultArr[idx] = stu.id;
-        gridCourse[idx] = bestCid;
+        gridYear[idx] = getStudentYear(stu, bestCid);
       }
     }
   }
 
-  // Evaluate Risk Count using gridCourse for O(1) comparisons
+  // If all students in the room are of the same academic year, horizontal adjacency is unavoidable.
+  // Bypass/skip risk flagging.
+  const activeYears = new Set(gridYear.filter((y): y is number => y !== null));
+  if (activeYears.size <= 1) {
+    return 0;
+  }
+
+  // Evaluate Risk Count using gridYear for O(1) comparisons
   let riskCount = 0;
   for (let r = 0; r < numRows; r++) {
     for (let c = 0; c < numCols; c++) {
       const idx = r * numCols + c;
-      const cid = gridCourse[idx];
-      if (!cid) continue;
+      const y = gridYear[idx];
+      if (y === null) continue;
 
       // Check left neighbor
-      if (c > 0 && gridCourse[idx - 1] === cid) { riskCount++; continue; }
+      if (c > 0 && gridYear[idx - 1] === y) { riskCount++; continue; }
       // Check right neighbor
-      if (c < numCols - 1 && gridCourse[idx + 1] === cid) { riskCount++; }
+      if (c < numCols - 1 && gridYear[idx + 1] === y) { riskCount++; }
     }
   }
 
@@ -255,7 +273,7 @@ export function generateDefaultDataset() {
     { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "Business & Humanities" },
     { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "Business & Humanities" },
     { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "Business & Humanities" },
-    { id: "STATS-150", name: "Applied Statistical Science", duration: 120, priority: "High", branch: "Computer Science & Eng" },
+    { id: "23IT301", name: "Information Technology", duration: 120, priority: "High", branch: "Computer Science & Eng" },
     { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "Mechanical Engineering" },
   ];
 
@@ -277,18 +295,18 @@ export function generateDefaultDataset() {
   // Raw mock student enrollment mapping (some with specific accommodations)
   const students: Student[] = [
     { id: "STU-01", name: "Bruce Wayne", email: "bruce.wayne@waynecorp.com", courses: ["CS-101", "MATH-201", "ENG-220"], accommodations: [] },
-    { id: "STU-02", name: "Clark Kent", email: "clark.kent@dailyplanet.com", courses: ["MATH-201", "PHY-110", "STATS-150"], accommodations: ["extra_time"] },
+    { id: "STU-02", name: "Clark Kent", email: "clark.kent@dailyplanet.com", courses: ["MATH-201", "PHY-110", "23IT301"], accommodations: ["extra_time"] },
     { id: "STU-03", name: "Diana Prince", email: "diana.prince@museum.org", courses: ["PHY-110", "CHEM-120", "LIT-305"], accommodations: [] },
-    { id: "STU-04", name: "Barry Allen", email: "barry.allen@ccpd.gov", courses: ["CS-101", "STATS-150"], accommodations: ["separate_room"] },
+    { id: "STU-04", name: "Barry Allen", email: "barry.allen@ccpd.gov", courses: ["CS-101", "23IT301"], accommodations: ["separate_room"] },
     { id: "STU-05", name: "Arthur Curry", email: "arthur.curry@atlantis.net", courses: ["LIT-305", "BIO-101"], accommodations: ["accessible"] },
     { id: "STU-06", name: "Hal Jordan", email: "hal.jordan@ferris.com", courses: ["ENG-220", "PHY-110"], accommodations: [] },
-    { id: "STU-07", name: "Victor Stone", email: "victor.stone@star-labs.com", courses: ["STATS-150", "ENG-220", "CS-101"], accommodations: ["separate_room", "accessible"] },
+    { id: "STU-07", name: "Victor Stone", email: "victor.stone@star-labs.com", courses: ["23IT301", "ENG-220", "CS-101"], accommodations: ["separate_room", "accessible"] },
     { id: "STU-08", name: "Oliver Queen", email: "oliver.queen@queenind.com", courses: ["MATH-201", "CHEM-120"], accommodations: [] },
     { id: "STU-09", name: "Selina Kyle", email: "selina.kyle@gotham.org", courses: ["CS-101", "LIT-305", "BIO-101"], accommodations: ["extra_time"] },
     { id: "STU-10", name: "Bruce Banner", email: "bruce.banner@culver.edu", courses: ["PHY-110", "CHEM-120", "BIO-101"], accommodations: ["separate_room", "scribe"] },
-    { id: "STU-11", name: "Tony Stark", email: "tony.stark@starkindustries.com", courses: ["STATS-150", "ENG-220", "MATH-201"], accommodations: [] },
+    { id: "STU-11", name: "Tony Stark", email: "tony.stark@starkindustries.com", courses: ["23IT301", "ENG-220", "MATH-201"], accommodations: [] },
     { id: "STU-12", name: "Peter Parker", email: "peter.parker@dailybugle.com", courses: ["BIO-101", "MATH-201"], accommodations: ["extra_time"] },
-    { id: "STU-13", name: "Natasha Romanoff", email: "natasha.romanoff@shield.gov", courses: ["CS-101", "STATS-150"], accommodations: [] },
+    { id: "STU-13", name: "Natasha Romanoff", email: "natasha.romanoff@shield.gov", courses: ["CS-101", "23IT301"], accommodations: [] },
     { id: "STU-14", name: "Steve Rogers", email: "steve.rogers@army.mil", courses: ["LIT-305", "ENG-220"], accommodations: ["accessible"] },
     { id: "STU-15", name: "Wanda Maximoff", email: "wanda.maximoff@avengers.org", courses: ["CHEM-120", "PHY-110"], accommodations: ["separate_room"] },
   ];
@@ -438,7 +456,7 @@ export function getConflictReport(
       });
     }
 
-    // Seating Proximity check (same-exam side-by-side adjacency)
+    // Seating Proximity check (same-year side-by-side adjacency)
     const activeCourses = activeEntries.map((e) => courseMap.get(e.courseId)).filter(Boolean) as Course[];
     const seatingRisk = getSeatingRiskCount(roomObj, activeCourses, students, activeEntries, eIdx);
     if (seatingRisk > 0) {
@@ -446,7 +464,7 @@ export function getConflictReport(
         id: `room_${keySR}_seating_risk`,
         type: "Hard",
         category: "Cheating Risk",
-        message: `Timeslot [${activeEntries[0].timeslotId}]: Exam room "${roomObj.name}" has ${seatingRisk} instance(s) of same-exam students seated horizontally adjacent.`,
+        message: `Timeslot [${activeEntries[0].timeslotId}]: Exam room "${roomObj.name}" has ${seatingRisk} instance(s) of same-year students seated horizontally adjacent.`,
         impactScore: seatingRisk * weights.cheatingSeparation * 10,
       });
     }
@@ -950,56 +968,56 @@ export function generateSimpleDataset() {
   ];
 
   const students: Student[] = [
-    { id: "STU-001", name: "Aarav Singh", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "CS-101"], accommodations: [] },
-    { id: "STU-002", name: "Bella Martinez", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "HIST-101"], accommodations: [] },
-    { id: "STU-003", name: "Carlos Rivera", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "PHY-101"], accommodations: [] },
-    { id: "STU-004", name: "Diana Patel", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "PHY-101"], accommodations: ["extra_time"] },
-    { id: "STU-005", name: "Ethan Brooks", email: "gedelapranaya@gmail.com", courses: ["CS-101", "HIST-101"], accommodations: [] },
-    { id: "STU-006", name: "Fatima Al-Rashid", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "SCI-101"], accommodations: [] },
-    { id: "STU-007", name: "George Okafor", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "SCI-101"], accommodations: [] },
-    { id: "STU-008", name: "Hannah Kim", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "CS-101"], accommodations: ["accessible"] },
-    { id: "STU-009", name: "Ivan Petrov", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "ENG-101"], accommodations: [] },
-    { id: "STU-010", name: "Jasmine Lee", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "ENG-101"], accommodations: [] },
-    { id: "STU-011", name: "Karan Mehta", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "CS-101"], accommodations: ["separate_room"] },
-    { id: "STU-012", name: "Layla Hassan", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "HIST-101"], accommodations: [] },
-    { id: "STU-013", name: "Marcus Johnson", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "HIST-101"], accommodations: [] },
-    { id: "STU-014", name: "Nadia Kowalski", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "PHY-101"], accommodations: [] },
-    { id: "STU-015", name: "Omar Abdullah", email: "gedelapranaya@gmail.com", courses: ["CS-101", "SCI-101"], accommodations: [] },
-    { id: "STU-016", name: "Priya Venkat", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "CS-101"], accommodations: ["extra_time"] },
-    { id: "STU-017", name: "Quinn Thompson", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "HIST-101"], accommodations: [] },
-    { id: "STU-018", name: "Riya Gupta", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "PHY-101"], accommodations: [] },
-    { id: "STU-019", name: "Samuel Adeyemi", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "CS-101"], accommodations: [] },
-    { id: "STU-020", name: "Tanya Volkov", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "PHY-101"], accommodations: [] },
-    { id: "STU-021", name: "Umar Farooq", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "CS-101"], accommodations: ["accessible"] },
-    { id: "STU-022", name: "Valentina Cruz", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "HIST-101"], accommodations: [] },
-    { id: "STU-023", name: "William Chen", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "ENG-101"], accommodations: [] },
-    { id: "STU-024", name: "Xena Alvarez", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "CS-101"], accommodations: [] },
-    { id: "STU-025", name: "Yusuf Ibrahim", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "MATH-101"], accommodations: [] },
-    { id: "STU-026", name: "Zara Nkosi", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "ENG-101"], accommodations: ["extra_time"] },
-    { id: "STU-027", name: "Arjun Reddy", email: "gedelapranaya@gmail.com", courses: ["CS-101", "PHY-101"], accommodations: [] },
-    { id: "STU-028", name: "Bianca Santos", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "SCI-101"], accommodations: [] },
-    { id: "STU-029", name: "Caleb Owens", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "PHY-101"], accommodations: [] },
-    { id: "STU-030", name: "Diya Joshi", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "MATH-101"], accommodations: [] },
-    { id: "STU-031", name: "Elias Fernandez", email: "gedelapranaya@gmail.com", courses: ["CS-101", "SCI-101"], accommodations: ["separate_room"] },
-    { id: "STU-032", name: "Freya Larsen", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "ENG-101"], accommodations: [] },
-    { id: "STU-033", name: "Gideon Nwosu", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "HIST-101"], accommodations: [] },
-    { id: "STU-034", name: "Hana Tanaka", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "CS-101"], accommodations: [] },
-    { id: "STU-035", name: "Iskander Yusupov", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "MATH-101"], accommodations: [] },
-    { id: "STU-036", name: "Jade Morrison", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "HIST-101"], accommodations: ["extra_time"] },
-    { id: "STU-037", name: "Kai Nakamura", email: "gedelapranaya@gmail.com", courses: ["CS-101", "ENG-101"], accommodations: [] },
-    { id: "STU-038", name: "Luna Rosario", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "MATH-101"], accommodations: [] },
-    { id: "STU-039", name: "Mikael Bergstrom", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "PHY-101"], accommodations: [] },
-    { id: "STU-040", name: "Nkechi Obi", email: "gedelapranaya@gmail.com", courses: ["ENG-101", "CS-101"], accommodations: [] },
-    { id: "STU-041", name: "Pablo Guerrero", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "PHY-101"], accommodations: [] },
-    { id: "STU-042", name: "Qian Zhang", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "ENG-101"], accommodations: ["accessible"] },
-    { id: "STU-043", name: "Rosa Hernandez", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "CS-101"], accommodations: [] },
-    { id: "STU-044", name: "Soren Andersen", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "SCI-101"], accommodations: [] },
-    { id: "STU-045", name: "Tariq Mansouri", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "ENG-101"], accommodations: [] },
-    { id: "STU-046", name: "Uma Krishnan", email: "gedelapranaya@gmail.com", courses: ["CS-101", "HIST-101"], accommodations: [] },
-    { id: "STU-047", name: "Vera Popova", email: "gedelapranaya@gmail.com", courses: ["MATH-101", "ENG-101"], accommodations: [] },
-    { id: "STU-048", name: "Wayne Oduya", email: "gedelapranaya@gmail.com", courses: ["SCI-101", "CS-101"], accommodations: ["extra_time"] },
-    { id: "STU-049", name: "Xiu-Ying Lin", email: "gedelapranaya@gmail.com", courses: ["PHY-101", "MATH-101"], accommodations: [] },
-    { id: "STU-050", name: "Yemi Adebayo", email: "gedelapranaya@gmail.com", courses: ["HIST-101", "SCI-101"], accommodations: [] },
+    { id: "STU-001", name: "Aarav Singh", email: "aarav.singh@college.edu", courses: ["MATH-101", "CS-101"], accommodations: [] },
+    { id: "STU-002", name: "Bella Martinez", email: "bella.martinez@college.edu", courses: ["ENG-101", "HIST-101"], accommodations: [] },
+    { id: "STU-003", name: "Carlos Rivera", email: "carlos.rivera@college.edu", courses: ["SCI-101", "PHY-101"], accommodations: [] },
+    { id: "STU-004", name: "Diana Patel", email: "diana.patel@college.edu", courses: ["MATH-101", "PHY-101"], accommodations: ["extra_time"] },
+    { id: "STU-005", name: "Ethan Brooks", email: "ethan.brooks@college.edu", courses: ["CS-101", "HIST-101"], accommodations: [] },
+    { id: "STU-006", name: "Fatima Al-Rashid", email: "fatima.al-rashid@college.edu", courses: ["ENG-101", "SCI-101"], accommodations: [] },
+    { id: "STU-007", name: "George Okafor", email: "george.okafor@college.edu", courses: ["MATH-101", "SCI-101"], accommodations: [] },
+    { id: "STU-008", name: "Hannah Kim", email: "hannah.kim@college.edu", courses: ["PHY-101", "CS-101"], accommodations: ["accessible"] },
+    { id: "STU-009", name: "Ivan Petrov", email: "ivan.petrov@college.edu", courses: ["HIST-101", "ENG-101"], accommodations: [] },
+    { id: "STU-010", name: "Jasmine Lee", email: "jasmine.lee@college.edu", courses: ["MATH-101", "ENG-101"], accommodations: [] },
+    { id: "STU-011", name: "Karan Mehta", email: "karan.mehta@college.edu", courses: ["SCI-101", "CS-101"], accommodations: ["separate_room"] },
+    { id: "STU-012", name: "Layla Hassan", email: "layla.hassan@college.edu", courses: ["PHY-101", "HIST-101"], accommodations: [] },
+    { id: "STU-013", name: "Marcus Johnson", email: "marcus.johnson@college.edu", courses: ["MATH-101", "HIST-101"], accommodations: [] },
+    { id: "STU-014", name: "Nadia Kowalski", email: "nadia.kowalski@college.edu", courses: ["ENG-101", "PHY-101"], accommodations: [] },
+    { id: "STU-015", name: "Omar Abdullah", email: "omar.abdullah@college.edu", courses: ["CS-101", "SCI-101"], accommodations: [] },
+    { id: "STU-016", name: "Priya Venkat", email: "priya.venkat@college.edu", courses: ["MATH-101", "CS-101"], accommodations: ["extra_time"] },
+    { id: "STU-017", name: "Quinn Thompson", email: "quinn.thompson@college.edu", courses: ["ENG-101", "HIST-101"], accommodations: [] },
+    { id: "STU-018", name: "Riya Gupta", email: "riya.gupta@college.edu", courses: ["SCI-101", "PHY-101"], accommodations: [] },
+    { id: "STU-019", name: "Samuel Adeyemi", email: "samuel.adeyemi@college.edu", courses: ["HIST-101", "CS-101"], accommodations: [] },
+    { id: "STU-020", name: "Tanya Volkov", email: "tanya.volkov@college.edu", courses: ["MATH-101", "PHY-101"], accommodations: [] },
+    { id: "STU-021", name: "Umar Farooq", email: "umar.farooq@college.edu", courses: ["ENG-101", "CS-101"], accommodations: ["accessible"] },
+    { id: "STU-022", name: "Valentina Cruz", email: "valentina.cruz@college.edu", courses: ["SCI-101", "HIST-101"], accommodations: [] },
+    { id: "STU-023", name: "William Chen", email: "william.chen@college.edu", courses: ["MATH-101", "ENG-101"], accommodations: [] },
+    { id: "STU-024", name: "Xena Alvarez", email: "xena.alvarez@college.edu", courses: ["PHY-101", "CS-101"], accommodations: [] },
+    { id: "STU-025", name: "Yusuf Ibrahim", email: "yusuf.ibrahim@college.edu", courses: ["SCI-101", "MATH-101"], accommodations: [] },
+    { id: "STU-026", name: "Zara Nkosi", email: "zara.nkosi@college.edu", courses: ["HIST-101", "ENG-101"], accommodations: ["extra_time"] },
+    { id: "STU-027", name: "Arjun Reddy", email: "arjun.reddy@college.edu", courses: ["CS-101", "PHY-101"], accommodations: [] },
+    { id: "STU-028", name: "Bianca Santos", email: "bianca.santos@college.edu", courses: ["MATH-101", "SCI-101"], accommodations: [] },
+    { id: "STU-029", name: "Caleb Owens", email: "caleb.owens@college.edu", courses: ["ENG-101", "PHY-101"], accommodations: [] },
+    { id: "STU-030", name: "Diya Joshi", email: "diya.joshi@college.edu", courses: ["HIST-101", "MATH-101"], accommodations: [] },
+    { id: "STU-031", name: "Elias Fernandez", email: "elias.fernandez@college.edu", courses: ["CS-101", "SCI-101"], accommodations: ["separate_room"] },
+    { id: "STU-032", name: "Freya Larsen", email: "freya.larsen@college.edu", courses: ["PHY-101", "ENG-101"], accommodations: [] },
+    { id: "STU-033", name: "Gideon Nwosu", email: "gideon.nwosu@college.edu", courses: ["MATH-101", "HIST-101"], accommodations: [] },
+    { id: "STU-034", name: "Hana Tanaka", email: "hana.tanaka@college.edu", courses: ["SCI-101", "CS-101"], accommodations: [] },
+    { id: "STU-035", name: "Iskander Yusupov", email: "iskander.yusupov@college.edu", courses: ["ENG-101", "MATH-101"], accommodations: [] },
+    { id: "STU-036", name: "Jade Morrison", email: "jade.morrison@college.edu", courses: ["PHY-101", "HIST-101"], accommodations: ["extra_time"] },
+    { id: "STU-037", name: "Kai Nakamura", email: "kai.nakamura@college.edu", courses: ["CS-101", "ENG-101"], accommodations: [] },
+    { id: "STU-038", name: "Luna Rosario", email: "luna.rosario@college.edu", courses: ["SCI-101", "MATH-101"], accommodations: [] },
+    { id: "STU-039", name: "Mikael Bergstrom", email: "mikael.bergstrom@college.edu", courses: ["HIST-101", "PHY-101"], accommodations: [] },
+    { id: "STU-040", name: "Nkechi Obi", email: "nkechi.obi@college.edu", courses: ["ENG-101", "CS-101"], accommodations: [] },
+    { id: "STU-041", name: "Pablo Guerrero", email: "pablo.guerrero@college.edu", courses: ["MATH-101", "PHY-101"], accommodations: [] },
+    { id: "STU-042", name: "Qian Zhang", email: "qian.zhang@college.edu", courses: ["SCI-101", "ENG-101"], accommodations: ["accessible"] },
+    { id: "STU-043", name: "Rosa Hernandez", email: "rosa.hernandez@college.edu", courses: ["HIST-101", "CS-101"], accommodations: [] },
+    { id: "STU-044", name: "Soren Andersen", email: "soren.andersen@college.edu", courses: ["MATH-101", "SCI-101"], accommodations: [] },
+    { id: "STU-045", name: "Tariq Mansouri", email: "tariq.mansouri@college.edu", courses: ["PHY-101", "ENG-101"], accommodations: [] },
+    { id: "STU-046", name: "Uma Krishnan", email: "uma.krishnan@college.edu", courses: ["CS-101", "HIST-101"], accommodations: [] },
+    { id: "STU-047", name: "Vera Popova", email: "vera.popova@college.edu", courses: ["MATH-101", "ENG-101"], accommodations: [] },
+    { id: "STU-048", name: "Wayne Oduya", email: "wayne.oduya@college.edu", courses: ["SCI-101", "CS-101"], accommodations: ["extra_time"] },
+    { id: "STU-049", name: "Xiu-Ying Lin", email: "xiu-ying.lin@college.edu", courses: ["PHY-101", "MATH-101"], accommodations: [] },
+    { id: "STU-050", name: "Yemi Adebayo", email: "yemi.adebayo@college.edu", courses: ["HIST-101", "SCI-101"], accommodations: [] },
   ];
 
 

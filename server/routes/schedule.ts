@@ -251,12 +251,12 @@ router.post('/send-seating-plan', async (req, res, next) => {
         <div style="background-color: #fdf2f2; border: 1px solid #f87171; color: #991b1b; padding: 16px; border-radius: 10px; margin-bottom: 25px; font-family: sans-serif;">
           <h4 style="margin-top: 0; margin-bottom: 8px; font-size: 14px; font-weight: bold;">⚠️ Anti-Cheat Proximity Warnings (${riskCount})</h4>
           <p style="margin: 0; font-size: 12px; line-height: 1.5;">
-            The scheduling engine detected same-exam candidates seated horizontally adjacent to each other. Please review these placements to prevent potential integrity violations:
+            The scheduling engine detected same-year candidates seated horizontally adjacent to each other. Please review these placements to prevent potential integrity violations:
           </p>
           <ul style="margin: 10px 0 0 20px; padding: 0; font-size: 12px; line-height: 1.6;">
       `;
       for (const seat of riskSeats) {
-        risksHtml += `<li>Seat <strong>Row ${seat.row}, Col ${seat.col}</strong>: <strong>${seat.student.name}</strong> (${seat.student.id}) taking <strong>${seat.course?.id}</strong> is adjacent to another student taking the same exam.</li>`;
+        risksHtml += `<li>Seat <strong>Row ${seat.row}, Col ${seat.col}</strong>: <strong>${seat.student.name}</strong> (${seat.student.id}) taking <strong>${seat.course?.id}</strong> is adjacent to another student in the same academic year.</li>`;
       }
       risksHtml += `
           </ul>
@@ -265,15 +265,15 @@ router.post('/send-seating-plan', async (req, res, next) => {
     } else if (singleExamRoom) {
       risksHtml = `
         <div style="background-color: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; padding: 14px; border-radius: 10px; margin-bottom: 25px; font-family: sans-serif; font-size: 12px; line-height: 1.5;">
-          <strong>ℹ️ Single-Exam Room</strong><br/>
-          This room is exclusively assigned to a single exam course. Since all candidates in the room are taking the same exam, horizontal adjacency is expected and normal. No cheating proximity alerts are flagged.
+          <strong>ℹ️ Single-Year Room</strong><br/>
+          This room is exclusively assigned to candidates of a single academic year. Since all candidates in the room belong to the same year, horizontal adjacency is expected and normal. No cheating proximity alerts are flagged.
         </div>
       `;
     } else {
       risksHtml = `
         <div style="background-color: #f0fdf4; border: 1px solid #86efac; color: #166534; padding: 14px; border-radius: 10px; margin-bottom: 25px; font-family: sans-serif; font-size: 12px; line-height: 1.5;">
           <strong>✓ Proximity Audit Passed</strong><br/>
-          Success! The classroom layout complies with the cheating-prevention rule (no same-exam candidates are seated side-by-side horizontally).
+          Success! The classroom layout complies with the cheating-prevention rule (no same-year candidates are seated side-by-side horizontally).
         </div>
       `;
     }

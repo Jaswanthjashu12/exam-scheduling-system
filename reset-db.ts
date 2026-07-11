@@ -77,7 +77,9 @@ try {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT,
-      year INTEGER CHECK(year BETWEEN 1 AND 4) DEFAULT 1
+      year INTEGER CHECK(year BETWEEN 1 AND 4) DEFAULT 1,
+      branch TEXT,
+      section TEXT
     );
 
     CREATE TABLE IF NOT EXISTS student_courses (
@@ -130,6 +132,53 @@ try {
     CREATE INDEX IF NOT EXISTS idx_schedule_invig ON schedule_entries(invigilator_id);
   `);
 
+  // Migrate schema to add block column to rooms table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(rooms)").all() as any[];
+    const hasBlock = tableInfo.some(col => col.name === 'block');
+    if (!hasBlock) {
+      db.prepare("ALTER TABLE rooms ADD COLUMN block TEXT").run();
+    }
+  } catch (err) {
+    console.error("Migration error for rooms.block:", err);
+  }
+
+  // Migrate schema to add branch column to students table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(students)").all() as any[];
+    const hasBranch = tableInfo.some(col => col.name === 'branch');
+    if (!hasBranch) {
+      db.prepare("ALTER TABLE students ADD COLUMN branch TEXT").run();
+    }
+  } catch (err) {
+    console.error("Migration error for students.branch:", err);
+  }
+
+  // Migrate schema to add section column to students table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(students)").all() as any[];
+    const hasSection = tableInfo.some(col => col.name === 'section');
+    if (!hasSection) {
+      db.prepare("ALTER TABLE students ADD COLUMN section TEXT").run();
+    }
+  } catch (err) {
+    console.error("Migration error for students.section:", err);
+  }
+
+  console.log('Cleaning up existing database tables...');
+  db.exec(`
+    DELETE FROM schedule_entries;
+    DELETE FROM student_accommodations;
+    DELETE FROM student_courses;
+    DELETE FROM students;
+    DELETE FROM invigilator_availability;
+    DELETE FROM invigilators;
+    DELETE FROM rooms;
+    DELETE FROM courses;
+    DELETE FROM branches;
+    DELETE FROM colleges;
+  `);
+
   console.log('Seeding default college & branches...');
   db.prepare('INSERT INTO colleges (id, name, exam_start_date) VALUES (1, ?, ?)')
     .run('State Institute of Technology', '2026-06-15');
@@ -153,15 +202,15 @@ try {
     { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "Business & Humanities", year: 3 },
     { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "Business & Humanities", year: 2 },
     { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "Business & Humanities", year: 4 },
-    { id: "STATS-150", name: "Applied Statistical Science", duration: 120, priority: "High", branch: "Computer Science & Eng", year: 3 },
+    { id: "23IT301", name: "Information Technology", duration: 120, priority: "High", branch: "Computer Science & Eng", year: 3 },
     { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "Mechanical Engineering", year: 4 },
   ];
 
   const rooms = [
-    { id: "RM-101", name: "Grand Exhibition Hall", capacity: 50, building: "Science Block A", accessible: 1 },
-    { id: "RM-204", name: "Advanced Computing Lab", capacity: 25, building: "Turing Plaza", accessible: 1 },
-    { id: "RM-305", name: "General Lecture Room", capacity: 30, building: "Liberal Arts Wing", accessible: 0 },
-    { id: "RM-12", name: "Scribe Annex Room 3", capacity: 10, building: "Administration Ground", accessible: 1 },
+    { id: "RM-101", name: "Grand Exhibition Hall", capacity: 50, building: "Science Block A", block: "Block 1", accessible: 1 },
+    { id: "RM-204", name: "Advanced Computing Lab", capacity: 25, building: "Turing Plaza", block: "Block 2", accessible: 1 },
+    { id: "RM-305", name: "General Lecture Room", capacity: 30, building: "Liberal Arts Wing", block: "Block 3", accessible: 0 },
+    { id: "RM-12", name: "Scribe Annex Room 3", capacity: 10, building: "Administration Ground", block: "Block 4", accessible: 1 },
   ];
 
   const invigilators = [
@@ -172,23 +221,58 @@ try {
     { id: "INV-105", name: "Prof. Rupert Giles", email: "rupert.giles@state.edu", department: "Humanities", maxWorkload: 3, availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-3-Afternoon", "Day-3-Evening"] },
   ];
 
-  const students = [
-    { id: "STU-01", name: "Bruce Wayne", email: "gedelapranaya@gmail.com", courses: ["CS-101", "MATH-201", "ENG-220"], accommodations: [], year: 1 },
-    { id: "STU-02", name: "Clark Kent", email: "gedelapranaya@gmail.com", courses: ["MATH-201", "PHY-110", "STATS-150"], accommodations: ["extra_time"], year: 2 },
-    { id: "STU-03", name: "Diana Prince", email: "gedelapranaya@gmail.com", courses: ["PHY-110", "CHEM-120", "LIT-305"], accommodations: [], year: 1 },
-    { id: "STU-04", name: "Barry Allen", email: "gedelapranaya@gmail.com", courses: ["CS-101", "STATS-150"], accommodations: ["separate_room"], year: 3 },
-    { id: "STU-05", name: "Arthur Curry", email: "gedelapranaya@gmail.com", courses: ["LIT-305", "BIO-101"], accommodations: ["accessible"], year: 2 },
-    { id: "STU-06", name: "Hal Jordan", email: "gedelapranaya@gmail.com", courses: ["ENG-220", "PHY-110"], accommodations: [], year: 4 },
-    { id: "STU-07", name: "Victor Stone", email: "gedelapranaya@gmail.com", courses: ["STATS-150", "ENG-220", "CS-101"], accommodations: ["separate_room", "accessible"], year: 3 },
-    { id: "STU-08", name: "Oliver Queen", email: "gedelapranaya@gmail.com", courses: ["MATH-201", "CHEM-120"], accommodations: [], year: 2 },
-    { id: "STU-09", name: "Selina Kyle", email: "gedelapranaya@gmail.com", courses: ["CS-101", "LIT-305", "BIO-101"], accommodations: ["extra_time"], year: 1 },
-    { id: "STU-10", name: "Bruce Banner", email: "gedelapranaya@gmail.com", courses: ["PHY-110", "CHEM-120", "BIO-101"], accommodations: ["separate_room", "scribe"], year: 4 },
-    { id: "STU-11", name: "Tony Stark", email: "gedelapranaya@gmail.com", courses: ["STATS-150", "ENG-220", "MATH-201"], accommodations: [], year: 3 },
-    { id: "STU-12", name: "Peter Parker", email: "gedelapranaya@gmail.com", courses: ["BIO-101", "MATH-201"], accommodations: ["extra_time"], year: 2 },
-    { id: "STU-13", name: "Natasha Romanoff", email: "gedelapranaya@gmail.com", courses: ["CS-101", "STATS-150"], accommodations: [], year: 1 },
-    { id: "STU-14", name: "Steve Rogers", email: "gedelapranaya@gmail.com", courses: ["LIT-305", "ENG-220"], accommodations: ["accessible"], year: 4 },
-    { id: "STU-15", name: "Wanda Maximoff", email: "gedelapranaya@gmail.com", courses: ["CHEM-120", "PHY-110"], accommodations: ["separate_room"], year: 3 },
-  ];
+  const generateStudents = () => {
+    const firstNames = ["James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles", "Christopher", "Daniel", "Matthew", "Anthony", "Mark", "Donald", "Steven", "Paul", "Andrew", "Joshua", "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", "Karen", "Nancy", "Lisa", "Betty", "Margaret", "Sandra", "Ashley", "Kimberly", "Emily", "Donna", "Michelle"];
+    const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson"];
+    const studentsList: any[] = [];
+    const accommodationsList = ["extra_time", "separate_room", "accessible", "scribe"];
+
+    for (let i = 1; i <= 100; i++) {
+      const fn = firstNames[(i * 3 + 7) % firstNames.length];
+      const ln = lastNames[(i * 7 + 11) % lastNames.length];
+      const name = `${fn} ${ln}`;
+      const id = `STU-${i.toString().padStart(3, '0')}`;
+      const email = `${fn.toLowerCase()}.${ln.toLowerCase()}@college.edu`;
+      
+      const year = ((i - 1) % 4) + 1; // Distribute 1, 2, 3, 4 evenly
+
+      const yearCourses: Record<number, string[]> = {
+        1: ["CS-101", "PHY-110"],
+        2: ["MATH-201", "BIO-101"],
+        3: ["CHEM-120", "23IT301"],
+        4: ["LIT-305", "ENG-220"]
+      };
+
+      const studentCourses = [...yearCourses[year]];
+      if (i % 3 === 0) {
+        studentCourses.push("LIT-305");
+      }
+
+      const accommodations: string[] = [];
+      if (i % 7 === 0) {
+        accommodations.push(accommodationsList[i % accommodationsList.length]);
+      }
+
+      const branchOptions = ["CSE", "ECE", "EEE"];
+      const sectionOptions = ["A", "B", "C", "D"];
+      const branch = branchOptions[i % branchOptions.length];
+      const section = sectionOptions[i % sectionOptions.length];
+
+      studentsList.push({
+        id,
+        name,
+        email,
+        courses: Array.from(new Set(studentCourses)),
+        accommodations,
+        year,
+        branch,
+        section
+      });
+    }
+    return studentsList;
+  };
+
+  const students = generateStudents();
 
   console.log('Seeding courses...');
   const insertCourse = db.prepare('INSERT INTO courses (id, name, duration, priority, branch, year) VALUES (?, ?, ?, ?, ?, ?)');
@@ -197,9 +281,9 @@ try {
   }
 
   console.log('Seeding rooms...');
-  const insertRoom = db.prepare('INSERT INTO rooms (id, name, capacity, building, accessible) VALUES (?, ?, ?, ?, ?)');
+  const insertRoom = db.prepare('INSERT INTO rooms (id, name, capacity, building, accessible, block) VALUES (?, ?, ?, ?, ?, ?)');
   for (const r of rooms) {
-    insertRoom.run(r.id, r.name, r.capacity, r.building, r.accessible);
+    insertRoom.run(r.id, r.name, r.capacity, r.building, r.accessible, r.block);
   }
 
   console.log('Seeding invigilators...');
@@ -213,11 +297,11 @@ try {
   }
 
   console.log('Seeding students...');
-  const insertStudent = db.prepare('INSERT INTO students (id, name, email, year) VALUES (?, ?, ?, ?)');
+  const insertStudent = db.prepare('INSERT INTO students (id, name, email, year, branch, section) VALUES (?, ?, ?, ?, ?, ?)');
   const insertStudentCourse = db.prepare('INSERT INTO student_courses (student_id, course_id) VALUES (?, ?)');
   const insertStudentAccom = db.prepare('INSERT INTO student_accommodations (student_id, accommodation) VALUES (?, ?)');
   for (const s of students) {
-    insertStudent.run(s.id, s.name, s.email || null, s.year);
+    insertStudent.run(s.id, s.name, s.email || null, s.year, s.branch || null, s.section || null);
     for (const cId of s.courses) {
       insertStudentCourse.run(s.id, cId);
     }
