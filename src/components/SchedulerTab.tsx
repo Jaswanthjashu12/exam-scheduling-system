@@ -739,32 +739,17 @@ export default function SchedulerTab({
             <div className="space-y-3.5">
               <span className="text-[9px] font-bold text-blue-400 uppercase bg-blue-950/40 border border-blue-900/30 px-2 py-0.5 rounded">2. Configuration</span>
               
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Duration</label>
-                  <select
-                    value={newCourseDuration}
-                    onChange={(e) => setNewCourseDuration(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
-                  >
-                    <option value={90}>90 Min</option>
-                    <option value={120}>120 Min</option>
-                    <option value={180}>180 Min</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Priority</label>
-                  <select
-                    value={newCoursePriority}
-                    onChange={(e) => setNewCoursePriority(e.target.value as any)}
-                    className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-bold"
-                  >
-                    <option value="High">🔴 High</option>
-                    <option value="Medium">🟡 Medium</option>
-                    <option value="Low">🟢 Low</option>
-                  </select>
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Duration</label>
+                <select
+                  value={newCourseDuration}
+                  onChange={(e) => setNewCourseDuration(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
+                >
+                  <option value={90}>90 Min</option>
+                  <option value={120}>120 Min</option>
+                  <option value={180}>180 Min</option>
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -1070,7 +1055,7 @@ export default function SchedulerTab({
                       <div className="max-w-[70%]">
                         <span className="font-mono text-[10px] font-bold text-blue-400">{crs.id}</span>
                         <h4 className="text-xs font-bold text-slate-200 truncate" title={crs.name}>{crs.name}</h4>
-                        <p className="text-[10px] text-slate-500">{enrolledCount} students • {crs.duration} mins • {crs.priority}</p>
+                        <p className="text-[10px] text-slate-500">{enrolledCount} students • {crs.duration} mins</p>
                       </div>
                       {!isSelected && (
                         <button
@@ -1164,33 +1149,18 @@ export default function SchedulerTab({
                           </select>
                         </div>
 
-                        {/* Duration and Priority option */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Duration (mins)</label>
-                            <select
-                              value={unschedDuration}
-                              onChange={(e) => setUnschedDuration(Number(e.target.value))}
-                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
-                            >
-                              <option value={90}>90 Min</option>
-                              <option value={120}>120 Min</option>
-                              <option value={150}>150 Min</option>
-                              <option value={180}>180 Min</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Priority</label>
-                            <select
-                              value={unschedPriority}
-                              onChange={(e) => setUnschedPriority(e.target.value as any)}
-                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
-                            >
-                              <option value="High">🔴 High</option>
-                              <option value="Medium">🟡 Medium</option>
-                              <option value="Low">🟢 Low</option>
-                            </select>
-                          </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase block">Duration (mins)</label>
+                          <select
+                            value={unschedDuration}
+                            onChange={(e) => setUnschedDuration(Number(e.target.value))}
+                            className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
+                          >
+                            <option value={90}>90 Min</option>
+                            <option value={120}>120 Min</option>
+                            <option value={150}>150 Min</option>
+                            <option value={180}>180 Min</option>
+                          </select>
                         </div>
 
                         {quickScheduleError && (
