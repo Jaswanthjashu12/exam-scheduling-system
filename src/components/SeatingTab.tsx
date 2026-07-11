@@ -1470,9 +1470,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                             localStorage.setItem("exam_scheduler_focus_add_room", "true");
                             if (setActiveTab) setActiveTab("config");
                           }}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 font-bold underline transition text-left cursor-pointer self-start"
+                          className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-750 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer select-none"
                         >
-                          + Need to add a new classroom? Click here
+                          + Configure / Add New Room
                         </button>
                       </div>
                     </>
