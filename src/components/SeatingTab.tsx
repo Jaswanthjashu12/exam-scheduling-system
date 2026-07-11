@@ -688,7 +688,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   const riskCount = seatingGrid.filter((s) => s.isRisk).length;
 
   // Find assigned proctors for this classroom and slot
-  const assignedInvigilatorIds = Array.from(new Set(selectedEntries.map((e) => e.invigilatorId).filter(Boolean)));
+  const assignedInvigilatorIds = Array.from(new Set(selectedEntries.flatMap((e) => e.invigilatorId ? e.invigilatorId.split(",") : []).filter(Boolean)));
   const assignedProctors = invigilators.filter((i) => assignedInvigilatorIds.includes(i.id));
 
   // ── Overflow Detection ──────────────────────────────────────────────────────

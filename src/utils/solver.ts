@@ -366,10 +366,13 @@ export function getConflictReport(
 
     // slot + invigilator
     if (entry.invigilatorId) {
-      const keySI = `${entry.timeslotId}_${entry.invigilatorId}`;
-      const siList = entriesBySlotInvigilator.get(keySI) || [];
-      siList.push(entry);
-      entriesBySlotInvigilator.set(keySI, siList);
+      const invIds = entry.invigilatorId.split(",").map(id => id.trim()).filter(Boolean);
+      for (const invId of invIds) {
+        const keySI = `${entry.timeslotId}_${invId}`;
+        const siList = entriesBySlotInvigilator.get(keySI) || [];
+        siList.push(entry);
+        entriesBySlotInvigilator.set(keySI, siList);
+      }
     }
   }
 
@@ -519,15 +522,18 @@ export function getConflictReport(
   for (const entry of entries) {
     if (!entry.timeslotId || !entry.roomId) continue;
     if (entry.invigilatorId) {
-      const invig = invigilatorMap.get(entry.invigilatorId);
-      if (invig && !invig.availability.includes(entry.timeslotId)) {
-        reports.push({
-          id: `invig_${invig.id}_unavail_${entry.timeslotId}_${entry.courseId}`,
-          type: "Hard",
-          category: "Invigilator Clash",
-          message: `Invigilator "${invig.name}" is scheduled for course exam "${courseMap.get(entry.courseId)?.name}" in slot [${entry.timeslotId}] but marked unavailable.`,
-          impactScore: weights.invigilatorOverlap * 0.5,
-        });
+      const invIds = entry.invigilatorId.split(",").map(id => id.trim()).filter(Boolean);
+      for (const invId of invIds) {
+        const invig = invigilatorMap.get(invId);
+        if (invig && !invig.availability.includes(entry.timeslotId)) {
+          reports.push({
+            id: `invig_${invig.id}_unavail_${entry.timeslotId}_${entry.courseId}`,
+            type: "Hard",
+            category: "Invigilator Clash",
+            message: `Invigilator "${invig.name}" is scheduled for course exam "${courseMap.get(entry.courseId)?.name}" in slot [${entry.timeslotId}] but marked unavailable.`,
+            impactScore: weights.invigilatorOverlap * 0.5,
+          });
+        }
       }
     }
   }
@@ -537,9 +543,12 @@ export function getConflictReport(
   for (const entry of entries) {
     if (!entry.timeslotId || !entry.roomId) continue;
     if (entry.invigilatorId) {
-      const slotSet = invigSlots.get(entry.invigilatorId) || new Set<string>();
-      slotSet.add(entry.timeslotId);
-      invigSlots.set(entry.invigilatorId, slotSet);
+      const invIds = entry.invigilatorId.split(",").map(id => id.trim()).filter(Boolean);
+      for (const invId of invIds) {
+        const slotSet = invigSlots.get(invId) || new Set<string>();
+        slotSet.add(entry.timeslotId);
+        invigSlots.set(invId, slotSet);
+      }
     }
   }
   for (const [invigId, slotSet] of invigSlots.entries()) {

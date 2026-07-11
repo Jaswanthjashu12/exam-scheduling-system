@@ -56,6 +56,7 @@ export default function SchedulerTab({
   const [moveSlotId, setMoveSlotId] = useState("");
   const [moveRoomId, setMoveRoomId] = useState("");
   const [moveInvigId, setMoveInvigId] = useState("");
+  const [moveInvigId2, setMoveInvigId2] = useState("");
   
   // Override real-time validation warnings
   const [validationReport, setValidationReport] = useState<string[]>([]);
@@ -66,6 +67,7 @@ export default function SchedulerTab({
   const [unschedRoomId, setUnschedRoomId] = useState("");
   const [unschedRoomIds, setUnschedRoomIds] = useState<string[]>([]);
   const [unschedInvigId, setUnschedInvigId] = useState("");
+  const [unschedInvigId2, setUnschedInvigId2] = useState("");
   const [unschedDuration, setUnschedDuration] = useState(120);
   const [unschedPriority, setUnschedPriority] = useState<"High" | "Medium" | "Low">("Medium");
   const [quickScheduleError, setQuickScheduleError] = useState<string | null>(null);
@@ -227,6 +229,7 @@ export default function SchedulerTab({
     setUnschedSlotId(DEFAULT_TIMESLOTS[0]?.id || "");
     setUnschedRoomIds([]);
     setUnschedInvigId(invigilators[0]?.id || "");
+    setUnschedInvigId2("");
     const targetCourse = courses.find((c) => c.id === courseId);
     if (targetCourse) {
       setUnschedDuration(targetCourse.duration || 120);
@@ -257,12 +260,13 @@ export default function SchedulerTab({
     setEntries((prev) => {
       const filtered = prev.filter((e) => e.courseId !== selectedUnscheduledCourse);
       
+      const combinedInvigId = [unschedInvigId, unschedInvigId2].filter(Boolean).join(",");
       const newEntries = unschedRoomIds.map((rId, idx) => ({
         id: `ent_${selectedUnscheduledCourse}_${rId}`,
         courseId: selectedUnscheduledCourse,
         timeslotId: unschedSlotId,
         roomId: rId,
-        invigilatorId: idx === 0 ? unschedInvigId : "", // default proctor to the first room
+        invigilatorId: idx === 0 ? combinedInvigId : "", // default proctor to the first room
       }));
 
       return [...filtered, ...newEntries];
@@ -382,33 +386,41 @@ export default function SchedulerTab({
     setEditingEntry(entry);
     setMoveSlotId(entry.timeslotId);
     setMoveRoomId(entry.roomId);
-    setMoveInvigId(entry.invigilatorId);
+    const invIds = entry.invigilatorId ? entry.invigilatorId.split(",") : [];
+    setMoveInvigId(invIds[0] || "");
+    setMoveInvigId2(invIds[1] || "");
     triggerInstantValidation(entry.courseId, entry.timeslotId, entry.roomId, entry.invigilatorId);
   };
 
-  const handleDropdownChange = (field: "slot" | "room" | "invig", val: string) => {
+  const handleDropdownChange = (field: "slot" | "room" | "invig" | "invig2", val: string) => {
     if (!editingEntry) return;
     let s = moveSlotId;
     let r = moveRoomId;
-    let i = moveInvigId;
+    let i1 = moveInvigId;
+    let i2 = moveInvigId2;
 
     if (field === "slot") { s = val; setMoveSlotId(val); }
     if (field === "room") { r = val; setMoveRoomId(val); }
-    if (field === "invig") { i = val; setMoveInvigId(val); }
+    if (field === "invig") { i1 = val; setMoveInvigId(val); }
+    if (field === "invig2") { i2 = val; setMoveInvigId2(val); }
 
-    triggerInstantValidation(editingEntry.courseId, s, r, i);
+    const combined = [i1, i2].filter(Boolean).join(",");
+    triggerInstantValidation(editingEntry.courseId, s, r, combined);
   };
 
   // Instant Validation check to satisfy FR-9 (All changes must be validated)
   const triggerInstantValidation = (courseId: string, slotId: string, roomId: string, invigId: string) => {
     const tempEntries = entries.map((e) =>
-      e.courseId === courseId ? { ...e, timeslotId: slotId, roomId: roomId, invigilatorId: invigId } : e
+      e.id === (editingEntry?.id || "") ? { ...e, timeslotId: slotId, roomId: roomId, invigilatorId: invigId } : e
     );
 
     const weights = { ...DEFAULT_WEIGHTS, strictBranchSeparation };
     const reports = getConflictReport(tempEntries, courses, students, rooms, invigilators, weights);
+    
+    // Split to check warning overlaps on all proctors
+    const invIds = invigId ? invigId.split(",") : [];
     const specificWarnings = reports
-      .filter((rep) => rep.id.includes(courseId) || rep.id.includes(roomId) || (invigId && rep.id.includes(invigId)))
+      .filter((rep) => rep.id.includes(courseId) || rep.id.includes(roomId) || invIds.some(id => rep.id.includes(id)))
       .map((rep) => `${rep.type} - ${rep.category}: ${rep.message}`);
 
     // Check room size
@@ -424,9 +436,10 @@ export default function SchedulerTab({
   const saveManualOverride = async () => {
     if (!editingEntry) return;
 
+    const combinedInvigId = [moveInvigId, moveInvigId2].filter(Boolean).join(",");
     const updated = entries.map((e) =>
-      e.courseId === editingEntry.courseId
-        ? { ...e, timeslotId: moveSlotId, roomId: moveRoomId, invigilatorId: moveInvigId }
+      e.id === editingEntry.id
+        ? { ...e, timeslotId: moveSlotId, roomId: moveRoomId, invigilatorId: combinedInvigId }
         : e
     );
     setEntries(updated);
@@ -1017,7 +1030,13 @@ export default function SchedulerTab({
 
                           <div className="space-y-1 text-[10px] text-slate-400 border-t border-slate-800 pt-1.5">
                             <p className="font-medium text-slate-300">🏢 Room: <span className="font-semibold text-white">{room?.name || "Unassigned"}</span> ({studCount} students)</p>
-                            <p className="font-medium text-slate-300">👤 Proctored by: <span className="font-semibold text-slate-200">{inv?.name || "None Assigned"}</span></p>
+                            <p className="font-medium text-slate-300">👤 Proctored by: <span className="font-semibold text-slate-200">
+                              {(() => {
+                                const ids = ent.invigilatorId ? ent.invigilatorId.split(",") : [];
+                                const procs = invigilators.filter((i) => ids.includes(i.id));
+                                return procs.length > 0 ? procs.map(p => p.name).join(", ") : "None Assigned";
+                              })()}
+                            </span></p>
                           </div>
                         </div>
                       );
@@ -1133,20 +1152,38 @@ export default function SchedulerTab({
                         </div>
 
                         {/* Invigilator option */}
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block">Proctor</label>
-                          <select
-                            value={unschedInvigId}
-                            onChange={(e) => setUnschedInvigId(e.target.value)}
-                            className="w-full bg-[#0A0C10] border border-slate-750 border-slate-700 rounded p-1 text-[11px] text-slate-200"
-                          >
-                            <option value="">-- No Proctor --</option>
-                            {invigilators.map((inv) => (
-                              <option key={inv.id} value={inv.id}>
-                                {inv.name} ({inv.department})
-                              </option>
-                            ))}
-                          </select>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Proctor 1 (Primary)</label>
+                            <select
+                              value={unschedInvigId}
+                              onChange={(e) => setUnschedInvigId(e.target.value)}
+                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
+                            >
+                              <option value="">-- No Proctor --</option>
+                              {invigilators.map((inv) => (
+                                <option key={inv.id} value={inv.id}>
+                                  {inv.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase block">Proctor 2 (Secondary)</label>
+                            <select
+                              value={unschedInvigId2}
+                              onChange={(e) => setUnschedInvigId2(e.target.value)}
+                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
+                            >
+                              <option value="">-- Optional --</option>
+                              {invigilators.map((inv) => (
+                                <option key={inv.id} value={inv.id} disabled={inv.id === unschedInvigId}>
+                                  {inv.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
                         <div className="space-y-1">
@@ -1302,20 +1339,38 @@ export default function SchedulerTab({
               </div>
 
               {/* Invigilator dropdown */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5">Assign Proctor Duty</label>
-                <select
-                  value={moveInvigId}
-                  onChange={(e) => handleDropdownChange("invig", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#0A0C10] rounded-lg focus:outline-none text-slate-200 font-medium"
-                >
-                  <option value="" className="bg-[#12151C] text-slate-400">-- No proctor assigned --</option>
-                  {invigilators.map((inv) => (
-                    <option key={inv.id} value={inv.id} className="bg-[#12151C] text-slate-200">
-                      {inv.name} - Dept: {inv.department} (Cap Work: {inv.maxWorkload})
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Assign Proctor 1 (Primary)</label>
+                  <select
+                    value={moveInvigId}
+                    onChange={(e) => handleDropdownChange("invig", e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#0A0C10] rounded-lg focus:outline-none text-slate-200 font-medium cursor-pointer"
+                  >
+                    <option value="" className="bg-[#12151C] text-slate-400">-- No proctor assigned --</option>
+                    {invigilators.map((inv) => (
+                      <option key={inv.id} value={inv.id} className="bg-[#12151C] text-slate-200">
+                        {inv.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Assign Proctor 2 (Secondary)</label>
+                  <select
+                    value={moveInvigId2}
+                    onChange={(e) => handleDropdownChange("invig2", e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#0A0C10] rounded-lg focus:outline-none text-slate-200 font-medium cursor-pointer"
+                  >
+                    <option value="" className="bg-[#12151C] text-slate-400">-- Optional --</option>
+                    {invigilators.map((inv) => (
+                      <option key={inv.id} value={inv.id} disabled={inv.id === moveInvigId} className="bg-[#12151C] text-slate-200">
+                        {inv.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Instant Solver validation alerts panel */}
