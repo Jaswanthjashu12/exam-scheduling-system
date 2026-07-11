@@ -378,11 +378,17 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         // Extract unique keys
         const uniqueKeys = Object.keys(secGroups).sort();
         
+        // Separate major keys (length >= 3) from minor/leftover keys (length < 3) to keep layouts stable
+        // If all keys are small, keep them all as major keys
+        const hasMajor = uniqueKeys.some(k => secGroups[k].length >= 3);
+        const majorKeys = hasMajor ? uniqueKeys.filter(k => secGroups[k].length >= 3) : uniqueKeys;
+        const minorKeys = hasMajor ? uniqueKeys.filter(k => secGroups[k].length < 3) : [];
+        
         // Interleave keys by year to ensure years alternate if multiple years are present
-        const years = Array.from(new Set(uniqueKeys.map(k => k.split('-')[0])));
+        const years = Array.from(new Set(majorKeys.map(k => k.split('-')[0])));
         const keysByYear: Record<string, string[]> = {};
         years.forEach(y => {
-          keysByYear[y] = uniqueKeys.filter(k => k.startsWith(y + '-'));
+          keysByYear[y] = majorKeys.filter(k => k.startsWith(y + '-'));
         });
 
         const interleavedKeys: string[] = [];
@@ -427,11 +433,34 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
           // Pull from target group
           if (targetKey && secGroups[targetKey] && secGroups[targetKey].length > 0) {
             defaultArr[idx] = secGroups[targetKey].shift()!.id;
-          } else {
-            // Fallback: pull from the first non-empty group in interleavedKeys
-            const fallbackKey = interleavedKeys.find(k => secGroups[k] && secGroups[k].length > 0);
-            if (fallbackKey) {
-              defaultArr[idx] = secGroups[fallbackKey].shift()!.id;
+          }
+        }
+
+        // Fill remaining empty slots with leftovers:
+        // First, collect all remaining students from the major groups and all students from minor/leftover groups.
+        const leftoverStudents: Student[] = [];
+        // First major remaining
+        interleavedKeys.forEach(k => {
+          if (secGroups[k]) {
+            leftoverStudents.push(...secGroups[k]);
+            secGroups[k] = [];
+          }
+        });
+        // Then minor groups
+        minorKeys.sort().forEach(k => {
+          if (secGroups[k]) {
+            leftoverStudents.push(...secGroups[k]);
+            secGroups[k] = [];
+          }
+        });
+
+        if (leftoverStudents.length > 0) {
+          let leftoverIdx = 0;
+          for (const { r, c } of scanOrder) {
+            const idx = r * numCols + c;
+            if (defaultArr[idx] === null && leftoverIdx < leftoverStudents.length) {
+              defaultArr[idx] = leftoverStudents[leftoverIdx].id;
+              leftoverIdx++;
             }
           }
         }

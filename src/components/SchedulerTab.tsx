@@ -78,7 +78,45 @@ export default function SchedulerTab({
   const [newCourseYear, setNewCourseYear] = useState<number>(1);
   const [newCourseDuration, setNewCourseDuration] = useState(120);
   const [newCoursePriority, setNewCoursePriority] = useState<"High" | "Medium" | "Low">("Medium");
-  const [newSlotId, setNewSlotId] = useState(DEFAULT_TIMESLOTS[0]?.id || "");
+  const getRoomOccupancyInSlot = (roomId: string, slotId: string) => {
+    const roomEntries = entries.filter((e) => e.timeslotId === slotId && e.roomId === roomId);
+    let totalOccupancy = 0;
+    
+    for (const ent of roomEntries) {
+      const courseEntries = entries.filter((e) => e.timeslotId === slotId && e.courseId === ent.courseId);
+      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      let enrolled = totalStudents;
+      
+      if (courseEntries.length > 1) {
+        const roomsWithCap = courseEntries.map((e) => {
+          const r = rooms.find((rm) => rm.id === e.roomId);
+          return {
+            id: e.id,
+            roomId: e.roomId,
+            capacity: r?.capacity || 30,
+          };
+        }).sort((a, b) => b.capacity - a.capacity);
+        
+        const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+        
+        let assignedSoFar = 0;
+        for (let i = 0; i <= entIdx; i++) {
+          const rObj = roomsWithCap[i];
+          if (i === entIdx) {
+            if (i === roomsWithCap.length - 1) {
+              enrolled = totalStudents - assignedSoFar;
+            } else {
+              enrolled = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+            }
+          } else {
+            assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
+          }
+        }
+      }
+      totalOccupancy += enrolled;
+    }
+    return totalOccupancy;
+  };
   const [newRoomId, setNewRoomId] = useState("");
   const [newInvigId, setNewInvigId] = useState("");
   const [newStudentCount, setNewStudentCount] = useState(15);
@@ -1063,10 +1101,20 @@ export default function SchedulerTab({
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-slate-400 uppercase block">Rooms (Select Multiple)</label>
                           <div className="grid grid-cols-2 gap-1.5 max-h-28 overflow-y-auto border border-slate-750 border-slate-700 rounded p-2 bg-[#0A0C10]">
-                            {rooms.length === 0 && (
+                            {rooms.filter((room) => {
+                              const isChecked = unschedRoomIds.includes(room.id);
+                              if (isChecked) return true;
+                              const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId);
+                              return occupancy < room.capacity;
+                            }).length === 0 && (
                               <span className="text-[10px] text-slate-500 col-span-2">No Rooms Available</span>
                             )}
-                            {rooms.map((room) => {
+                            {rooms.filter((room) => {
+                              const isChecked = unschedRoomIds.includes(room.id);
+                              if (isChecked) return true;
+                              const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId);
+                              return occupancy < room.capacity;
+                            }).map((room) => {
                               const isChecked = unschedRoomIds.includes(room.id);
                               return (
                                 <label key={room.id} className="flex items-center gap-1.5 text-[10px] text-slate-200 cursor-pointer select-none">
