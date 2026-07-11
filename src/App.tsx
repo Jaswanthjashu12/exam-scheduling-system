@@ -686,6 +686,7 @@ export default function App() {
             students={students}
             invigilators={invigilators}
             entries={entries}
+            setEntries={setEntries}
             examStartDate={examStartDate}
             collegeName={collegeName}
             setActiveTab={setActiveTab}

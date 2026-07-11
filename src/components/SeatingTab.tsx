@@ -15,12 +15,13 @@ interface SeatingTabProps {
   students: Student[];
   invigilators: Invigilator[];
   entries: ScheduleEntry[];
+  setEntries: React.Dispatch<React.SetStateAction<ScheduleEntry[]>>;
   examStartDate?: string;
   collegeName?: string;
   setActiveTab?: (tab: any) => void;
 }
 
-export default function SeatingTab({ courses, rooms, students, invigilators, entries, examStartDate = "2026-06-15", collegeName = "", setActiveTab }: SeatingTabProps) {
+export default function SeatingTab({ courses, rooms, students, invigilators, entries, setEntries, examStartDate = "2026-06-15", collegeName = "", setActiveTab }: SeatingTabProps) {
   const [selectedSlotId, setSelectedSlotId] = useState("Day-1-Morning");
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [sendingPlan, setSendingPlan] = useState(false);
@@ -791,6 +792,28 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     ];
     setOverflowAssignments(updated);
     localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
+    
+    // Create schedule entry for the target room
+    const courseId = selectedEntries[0]?.courseId;
+    if (courseId) {
+      const exists = entries.some(
+        (e) => e.timeslotId === selectedSlotId && e.courseId === courseId && e.roomId === selectedOverflowTargetRoom
+      );
+      if (!exists) {
+        const newEntry: ScheduleEntry = {
+          id: `man-${Date.now()}`,
+          courseId,
+          timeslotId: selectedSlotId,
+          roomId: selectedOverflowTargetRoom,
+          invigilatorId: "", // Leave blank so they must assign proctor!
+        };
+        setEntries([...entries, newEntry]);
+      }
+    }
+
+    const targetRoomName = rooms.find(r => r.id === selectedOverflowTargetRoom)?.name || selectedOverflowTargetRoom;
+    alert(`⚠️ Room "${targetRoomName}" has been assigned as an overflow room. Please assign a Proctor/Invigilator to it in the Scheduler Tab!`);
+    
     setSelectedOverflowTargetRoom("");
   };
 
@@ -800,6 +823,19 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     );
     setOverflowAssignments(updated);
     localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
+
+    // Remove the schedule entry for this course, slot, and target room
+    const targetRoomId = currentOverflowAssignment?.toRoomId;
+    if (targetRoomId) {
+      const courseId = selectedEntries[0]?.courseId;
+      if (courseId) {
+        setEntries(
+          entries.filter(
+            (e) => !(e.timeslotId === selectedSlotId && e.courseId === courseId && e.roomId === targetRoomId)
+          )
+        );
+      }
+    }
   };
 
   // Automatically sync / clear overflow assignment if students fit now (due to layout / grid changes)
