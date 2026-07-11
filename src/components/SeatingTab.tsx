@@ -732,6 +732,13 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       }
       totalOccupancy += enrolled;
     }
+    
+    // Add overflow arrivals
+    const arrivals = overflowAssignments
+      .filter((a) => a.slotId === slotId && a.toRoomId === roomId)
+      .reduce((sum, a) => sum + a.studentIds.length, 0);
+    totalOccupancy += arrivals;
+    
     return totalOccupancy;
   };
 

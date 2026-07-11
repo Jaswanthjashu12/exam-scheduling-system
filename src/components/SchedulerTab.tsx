@@ -115,6 +115,17 @@ export default function SchedulerTab({
       }
       totalOccupancy += enrolled;
     }
+    
+    // Add overflow arrivals from other rooms
+    try {
+      const saved = localStorage.getItem("exam_scheduler_overflow_assignments");
+      const assignments = saved ? JSON.parse(saved) : [];
+      const arrivals = assignments
+        .filter((a: any) => a.slotId === slotId && a.toRoomId === roomId)
+        .reduce((sum: number, a: any) => sum + (a.studentIds?.length || 0), 0);
+      totalOccupancy += arrivals;
+    } catch (e) {}
+    
     return totalOccupancy;
   };
   const [newRoomId, setNewRoomId] = useState("");
@@ -214,8 +225,7 @@ export default function SchedulerTab({
   const handleStartQuickSchedule = (courseId: string) => {
     setSelectedUnscheduledCourse(courseId);
     setUnschedSlotId(DEFAULT_TIMESLOTS[0]?.id || "");
-    setUnschedRoomId(rooms[0]?.id || "");
-    setUnschedRoomIds(rooms[0] ? [rooms[0].id] : []);
+    setUnschedRoomIds([]);
     setUnschedInvigId(invigilators[0]?.id || "");
     const targetCourse = courses.find((c) => c.id === courseId);
     if (targetCourse) {
@@ -1107,7 +1117,7 @@ export default function SchedulerTab({
                               const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId);
                               return occupancy < room.capacity;
                             }).length === 0 && (
-                              <span className="text-[10px] text-slate-500 col-span-2">No Rooms Available</span>
+                              <span className="text-[10px] text-slate-500 col-span-2">All rooms are filled in this timeslot</span>
                             )}
                             {rooms.filter((room) => {
                               const isChecked = unschedRoomIds.includes(room.id);
