@@ -84,7 +84,7 @@ export default function SchedulerTab({
     
     for (const ent of roomEntries) {
       const courseEntries = entries.filter((e) => e.timeslotId === slotId && e.courseId === ent.courseId);
-      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
       let enrolled = totalStudents;
       
       if (courseEntries.length > 1) {
@@ -403,7 +403,7 @@ export default function SchedulerTab({
 
     // Check room size
     const roomObj = rooms.find((r) => r.id === roomId);
-    const studCount = students.filter((s) => s.courses.includes(courseId)).length;
+    const studCount = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === courseId.trim().toUpperCase())).length;
     if (roomObj && studCount > roomObj.capacity) {
       specificWarnings.push(`Hard Room Overflow: Enrolled students (${studCount} seats) exceeds room capacity (${roomObj.capacity} seats)`);
     }
@@ -948,7 +948,7 @@ export default function SchedulerTab({
                       
                       // Calculate the student count for this room if course is scheduled in multiple rooms
                       const courseEntries = slotEntries.filter((e) => e.courseId === ent.courseId);
-                      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+                      const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
                       let studCount = totalStudents;
                       
                       if (courseEntries.length > 1) {
@@ -1052,7 +1052,7 @@ export default function SchedulerTab({
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {unscheduledCourses.map((crs) => {
                 const isSelected = selectedUnscheduledCourse === crs.id;
-                const enrolledCount = students.filter((s) => s.courses.includes(crs.id)).length;
+                const enrolledCount = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === crs.id.trim().toUpperCase())).length;
 
                 return (
                   <div key={crs.id} className="p-3 bg-[#0A0C10]/40 rounded-lg border border-slate-800 space-y-2">

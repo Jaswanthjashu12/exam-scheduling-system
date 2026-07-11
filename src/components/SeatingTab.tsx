@@ -99,7 +99,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   Object.keys(courseEntriesMap).forEach((cid) => {
     const courseEntries = courseEntriesMap[cid];
-    const rawStudents = students.filter((s) => s.courses.includes(cid));
+    const rawStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === cid.trim().toUpperCase()));
     
     // Group by branch-section to interleave sections/branches across rooms
     const secGroups: Record<string, Student[]> = {};

@@ -43,7 +43,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
       const inv = invigilators.find((i) => i.id === ent.invigilatorId);
       // Calculate proportional enrolled count if scheduled in multiple rooms
       const courseEntries = entries.filter((e) => e.timeslotId === ent.timeslotId && e.courseId === ent.courseId);
-      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
       let enrolled = totalStudents;
       
       if (courseEntries.length > 1) {
@@ -164,7 +164,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
         const inv = invigilators.find((i) => i.id === ent.invigilatorId);
         // Calculate proportional enrolled count if scheduled in multiple rooms
         const courseEntries = entries.filter((e) => e.timeslotId === ent.timeslotId && e.courseId === ent.courseId);
-        const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+        const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
         let enrolledCount = totalStudents;
         
         if (courseEntries.length > 1) {
@@ -371,7 +371,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
     for (const ent of roomEntries) {
       // Calculate proportional enrolled count if scheduled in multiple rooms
       const courseEntries = entries.filter((e) => e.timeslotId === ent.timeslotId && e.courseId === ent.courseId);
-      const totalStudents = students.filter((s) => s.courses.includes(ent.courseId)).length;
+      const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
       let enrolledCount = totalStudents;
       
       if (courseEntries.length > 1) {
