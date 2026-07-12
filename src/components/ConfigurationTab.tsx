@@ -1338,7 +1338,7 @@ export default function ConfigurationTab({
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Enrolled Courses (Select at least 1)</label>
                   <div className="max-h-48 overflow-y-auto border border-slate-805 rounded-lg p-2.5 space-y-3 bg-[#12151C]">
                     {(() => {
-                      const yearCourses = courses.filter(c => (c.year || 1) === newStudentYear);
+                      const yearCourses = courses.filter(c => (c.year || 1) === newStudentYear && c.branch?.trim().toUpperCase() === newStudentBranch.trim().toUpperCase());
                       const grouped = yearCourses.reduce((acc, c) => {
                         const branch = c.branch || "General / Uncategorized";
                         if (!acc[branch]) acc[branch] = [];
@@ -1350,7 +1350,7 @@ export default function ConfigurationTab({
                       if (entries.length === 0) {
                         return (
                           <div className="text-center text-slate-500 py-6 text-xs italic">
-                            No courses found for Year {newStudentYear}
+                            No courses found for Year {newStudentYear} under Branch {newStudentBranch}
                           </div>
                         );
                       }
