@@ -1308,8 +1308,14 @@ export default function ConfigurationTab({
                       className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
                     >
                       <option value="CSE" className="bg-[#12151C]">CSE</option>
-                      <option value="ECE" className="bg-[#12151C]">ECE</option>
+                      <option value="CSE-AIDS" className="bg-[#12151C]">CSE-AIDS</option>
+                      <option value="CSE-AIML" className="bg-[#12151C]">CSE-AIML</option>
+                      <option value="IT" className="bg-[#12151C]">IT</option>
+                      <option value="MECH" className="bg-[#12151C]">MECH</option>
+                      <option value="CIVIL" className="bg-[#12151C]">CIVIL</option>
+                      <option value="CSE-CYBER" className="bg-[#12151C]">CSE-CYBER</option>
                       <option value="EEE" className="bg-[#12151C]">EEE</option>
+                      <option value="ECE" className="bg-[#12151C]">ECE</option>
                     </select>
                   </div>
                   <div>
@@ -1459,13 +1465,11 @@ export default function ConfigurationTab({
                       className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="all">🎓 View All Branches</option>
-                      {Array.from(new Set(students.map((s) => s.branch).filter(Boolean)))
-                        .sort()
-                        .map((branch) => (
-                          <option key={branch} value={branch}>
-                            {branch}
-                          </option>
-                        ))}
+                      {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((branch) => (
+                        <option key={branch} value={branch}>
+                          {branch}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <button onClick={() => openImportModal('students')} className="text-emerald-400 hover:text-emerald-300 cursor-pointer font-semibold flex items-center gap-1 select-none bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition hover:bg-emerald-500/15 text-[11px]">
