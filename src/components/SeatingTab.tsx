@@ -184,7 +184,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   // --- Grid Layout Configuration (per room+slot) ---
   // Store layout configs keyed by seatKey
-  const [gridConfigs, setGridConfigs] = useState<Record<string, { numCols: number; numRows: number; seatsPerCol: number }>>(() => {
+  const [gridConfigs, setGridConfigs] = useState<Record<string, { numCols: number; numRows: number; seatsPerCol: number; colHeights?: number[] }>>(() => {
     const saved = localStorage.getItem("exam_scheduler_grid_configs");
     return saved ? JSON.parse(saved) : {};
   });
@@ -208,18 +208,69 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   // We display seatsPerCol as a linked control; changing it updates numRows
   const seatsPerCol = numRows;
 
-  const updateGridConfig = (patch: Partial<{ numCols: number; numRows: number; seatsPerCol: number }>) => {
+  const colHeights = currentGridConfig.colHeights || Array(numCols).fill(numRows);
+
+  const updateGridConfig = (patch: Partial<{ numCols: number; numRows: number; seatsPerCol: number; colHeights: number[] }>) => {
+    const nextCols = patch.numCols !== undefined ? patch.numCols : numCols;
+    const nextRows = patch.numRows !== undefined ? patch.numRows : numRows;
+    let nextHeights = patch.colHeights || currentGridConfig.colHeights || Array(nextCols).fill(nextRows);
+
+    if (nextHeights.length !== nextCols) {
+      if (nextHeights.length < nextCols) {
+        nextHeights = [...nextHeights, ...Array(nextCols - nextHeights.length).fill(nextRows)];
+      } else {
+        nextHeights = nextHeights.slice(0, nextCols);
+      }
+    }
+
+    if (patch.numRows !== undefined && patch.numRows !== numRows) {
+      nextHeights = nextHeights.map((h) => (h === numRows ? patch.numRows! : h));
+    }
+
     const updated = {
       ...gridConfigs,
-      [seatKey]: { ...currentGridConfig, ...patch },
+      [seatKey]: {
+        ...currentGridConfig,
+        ...patch,
+        numCols: nextCols,
+        numRows: nextRows,
+        seatsPerCol: nextRows,
+        colHeights: nextHeights,
+      },
     };
     setGridConfigs(updated);
     localStorage.setItem("exam_scheduler_grid_configs", JSON.stringify(updated));
     setSelectedSeatIndex(null);
   };
 
-  // Total visible seats in grid = numRows * numCols
-  const gridTotalSeats = numRows * numCols;
+  // Find all active seat coordinates for this room layout
+  const activeSeatCoords: { r: number; c: number }[] = [];
+  const maxRows = Math.max(...colHeights);
+
+  if (fillDirection === "column-wise") {
+    for (let c = 0; c < numCols; c++) {
+      const height = colHeights[c] ?? numRows;
+      for (let r = 0; r < height; r++) {
+        activeSeatCoords.push({ r, c });
+      }
+    }
+  } else {
+    for (let r = 0; r < maxRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        const height = colHeights[c] ?? numRows;
+        if (r < height) {
+          activeSeatCoords.push({ r, c });
+        }
+      }
+    }
+  }
+
+  const getSeatIdx = (r: number, c: number): number => {
+    return activeSeatCoords.findIndex((coord) => coord.r === r && coord.c === c);
+  };
+
+  // Total visible seats in grid is the count of active seat coordinates
+  const gridTotalSeats = activeSeatCoords.length;
 
   // Track custom manual seating layouts
   const [customSeating, setCustomSeating] = useState<Record<string, (string | null)[]>>(() => {
@@ -307,8 +358,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             // Interleave departments: Column C goes to branch activeBranches[C % activeBranches.length]
             if (fillDirection === "column-wise") {
               for (let c = 0; c < numCols; c++) {
-                for (let r = 0; r < numRows; r++) {
-                  const idx = r * numCols + c;
+                const height = colHeights[c] ?? numRows;
+                for (let r = 0; r < height; r++) {
+                  const idx = getSeatIdx(r, c);
+                  if (idx === -1) continue;
                   const branchForCol = activeBranches[c % activeBranches.length];
                   const list = branchGroups[branchForCol];
                   if (list && list.length > 0) {
@@ -317,9 +370,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 }
               }
             } else {
-              for (let r = 0; r < numRows; r++) {
+              for (let r = 0; r < maxRows; r++) {
                 for (let c = 0; c < numCols; c++) {
-                  const idx = r * numCols + c;
+                  const idx = getSeatIdx(r, c);
+                  if (idx === -1) continue;
                   const branchForCol = activeBranches[c % activeBranches.length];
                   const list = branchGroups[branchForCol];
                   if (list && list.length > 0) {
@@ -338,8 +392,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
             if (fillDirection === "column-wise") {
               for (let c = 0; c < numCols; c++) {
-                for (let r = 0; r < numRows; r++) {
-                  const idx = r * numCols + c;
+                const height = colHeights[c] ?? numRows;
+                for (let r = 0; r < height; r++) {
+                  const idx = getSeatIdx(r, c);
+                  if (idx === -1) continue;
                   // Only assign to even columns (0, 2, 4...)
                   if (c % 2 === 0 && allStudentsQueue.length > 0) {
                     defaultArr[idx] = allStudentsQueue.shift()!.id;
@@ -347,9 +403,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 }
               }
             } else {
-              for (let r = 0; r < numRows; r++) {
+              for (let r = 0; r < maxRows; r++) {
                 for (let c = 0; c < numCols; c++) {
-                  const idx = r * numCols + c;
+                  const idx = getSeatIdx(r, c);
+                  if (idx === -1) continue;
                   // Only assign to even columns (0, 2, 4...)
                   if (c % 2 === 0 && allStudentsQueue.length > 0) {
                     defaultArr[idx] = allStudentsQueue.shift()!.id;
@@ -409,14 +466,18 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         const scanOrder: { r: number; c: number }[] = [];
         if (fillDirection === "column-wise") {
           for (let c = 0; c < numCols; c++) {
-            for (let r = 0; r < numRows; r++) {
+            const height = colHeights[c] ?? numRows;
+            for (let r = 0; r < height; r++) {
               scanOrder.push({ r, c });
             }
           }
         } else {
-          for (let r = 0; r < numRows; r++) {
+          for (let r = 0; r < maxRows; r++) {
             for (let c = 0; c < numCols; c++) {
-              scanOrder.push({ r, c });
+              const height = colHeights[c] ?? numRows;
+              if (r < height) {
+                scanOrder.push({ r, c });
+              }
             }
           }
         }
@@ -428,7 +489,8 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         }
 
         for (const { r, c } of scanOrder) {
-          const idx = r * numCols + c;
+          const idx = getSeatIdx(r, c);
+          if (idx === -1) continue;
           
           let targetKey = colKeyMap[c];
           
@@ -459,7 +521,8 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         if (leftoverStudents.length > 0) {
           let leftoverIdx = 0;
           for (const { r, c } of scanOrder) {
-            const idx = r * numCols + c;
+            const idx = getSeatIdx(r, c);
+            if (idx === -1) continue;
             if (defaultArr[idx] === null && leftoverIdx < leftoverStudents.length) {
               defaultArr[idx] = leftoverStudents[leftoverIdx].id;
               leftoverIdx++;
@@ -485,7 +548,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
         // Assign each row a course ID (alternating round-robin)
         const rowCourses: (string | null)[] = [];
-        for (let r = 0; r < numRows; r++) {
+        for (let r = 0; r < maxRows; r++) {
           if (sortedCourseIds.length > 0) {
             rowCourses[r] = sortedCourseIds[r % sortedCourseIds.length];
           } else {
@@ -494,12 +557,13 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
         }
 
         // Fill the grid row-by-row
-        for (let r = 0; r < numRows; r++) {
+        for (let r = 0; r < maxRows; r++) {
           const cid = rowCourses[r];
           if (!cid) continue;
           const list = groups[cid];
           for (let c = 0; c < numCols; c++) {
-            const gridIdx = r * numCols + c;
+            const gridIdx = getSeatIdx(r, c);
+            if (gridIdx === -1) continue;
             if (list && list.length > 0) {
               const stu = list.shift()!;
               defaultArr[gridIdx] = stu.id;
@@ -515,9 +579,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
         if (leftoverStudents.length > 0) {
           let leftoverIdx = 0;
-          for (let r = 0; r < numRows; r++) {
+          for (let r = 0; r < maxRows; r++) {
             for (let c = 0; c < numCols; c++) {
-              const gridIdx = r * numCols + c;
+              const gridIdx = getSeatIdx(r, c);
+              if (gridIdx === -1) continue;
               if (defaultArr[gridIdx] === null && leftoverIdx < leftoverStudents.length) {
                 defaultArr[gridIdx] = leftoverStudents[leftoverIdx].id;
                 leftoverIdx++;
@@ -531,24 +596,11 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
         if (autoSortMode === "roll-number") {
           sorted = [...totalStudentsInRoom].sort((a, b) => a.id.localeCompare(b.id));
-          if (fillDirection === "column-wise") {
-            sorted.forEach((stu, i) => {
-              if (i < gridTotalSeats) {
-                const col = Math.floor(i / numRows);
-                const row = i % numRows;
-                const gridIdx = row * numCols + col;
-                if (gridIdx < gridTotalSeats) {
-                  defaultArr[gridIdx] = stu.id;
-                }
-              }
-            });
-          } else {
-            sorted.forEach((stu, i) => {
-              if (i < gridTotalSeats) {
-                defaultArr[i] = stu.id;
-              }
-            });
-          }
+          sorted.forEach((stu, i) => {
+            if (i < gridTotalSeats) {
+              defaultArr[i] = stu.id;
+            }
+          });
         } else if (autoSortMode === "branch") {
           sorted = [...totalStudentsInRoom].sort((a, b) => {
             const courseA = getStudentCourseInSlot(a);
@@ -559,24 +611,11 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             if (cmp !== 0) return cmp;
             return a.id.localeCompare(b.id);
           });
-          if (fillDirection === "column-wise") {
-            sorted.forEach((stu, i) => {
-              if (i < gridTotalSeats) {
-                const col = Math.floor(i / numRows);
-                const row = i % numRows;
-                const gridIdx = row * numCols + col;
-                if (gridIdx < gridTotalSeats) {
-                  defaultArr[gridIdx] = stu.id;
-                }
-              }
-            });
-          } else {
-            sorted.forEach((stu, i) => {
-              if (i < gridTotalSeats) {
-                defaultArr[i] = stu.id;
-              }
-            });
-          }
+          sorted.forEach((stu, i) => {
+            if (i < gridTotalSeats) {
+              defaultArr[i] = stu.id;
+            }
+          });
         }
       }
 
@@ -625,16 +664,20 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   };
 
-  // Generate Seating grid using configured numRows x numCols
-  const seatingGrid: { row: number; col: number; student: Student | null; course: Course | null; isRisk: boolean }[] = [];
+  // Generate Seating grid using configured maxRows x numCols
+  const seatingGrid: { row: number; col: number; student: Student | null; course: Course | null; isRisk: boolean; isValidSeat: boolean }[] = [];
 
-  for (let r = 0; r < numRows; r++) {
+  for (let r = 0; r < maxRows; r++) {
     for (let c = 0; c < numCols; c++) {
-      const idx = r * numCols + c;
-      const studentId = resolvedArrangement[idx] ?? null;
-      const stu = studentId ? students.find((s) => s.id === studentId) || null : null;
-      const courseOfStudent = stu ? getStudentCourseInSlot(stu) : null;
-      seatingGrid.push({ row: r + 1, col: c + 1, student: stu, course: courseOfStudent, isRisk: false });
+      const idx = getSeatIdx(r, c);
+      if (idx !== -1) {
+        const studentId = resolvedArrangement[idx] ?? null;
+        const stu = studentId ? students.find((s) => s.id === studentId) || null : null;
+        const courseOfStudent = stu ? getStudentCourseInSlot(stu) : null;
+        seatingGrid.push({ row: r + 1, col: c + 1, student: stu, course: courseOfStudent, isRisk: false, isValidSeat: true });
+      } else {
+        seatingGrid.push({ row: r + 1, col: c + 1, student: null, course: null, isRisk: false, isValidSeat: false });
+      }
     }
   }
 
@@ -654,15 +697,15 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   if (!singleYearRoom) {
     for (let i = 0; i < seatingGrid.length; i++) {
       const seat = seatingGrid[i];
-      if (seat.student) {
+      if (seat.student && seat.isValidSeat) {
         const row = seat.row;
         const col = seat.col;
         const sYear = getStudentYearInSlot(seat.student);
 
         // Only check horizontal neighbors (left & right) — same column (up/down) is allowed
         const horizontalNeighbors = [
-          seatingGrid.find((s) => s.row === row && s.col === col - 1), // left
-          seatingGrid.find((s) => s.row === row && s.col === col + 1), // right
+          seatingGrid.find((s) => s.row === row && s.col === col - 1 && s.isValidSeat), // left
+          seatingGrid.find((s) => s.row === row && s.col === col + 1 && s.isValidSeat), // right
         ];
 
         for (const edge of horizontalNeighbors) {
@@ -1268,6 +1311,37 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 </div>
               )}
             </div>
+            
+            {/* Custom Column Heights Panel */}
+            <div className="flex flex-col gap-1.5 w-full mt-4 border-t border-slate-800/40 pt-4">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Custom Column Heights (Set seats per column)</label>
+              <div className="flex flex-wrap gap-2.5 items-center">
+                {colHeights.map((height, cIdx) => (
+                  <div key={cIdx} className="flex flex-col items-center gap-1 bg-[#0A0C10] p-2 rounded-xl border border-slate-800 shadow-sm">
+                    <span className="text-[8px] font-mono font-bold text-slate-500 uppercase">Col {cIdx + 1}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const nextHeights = [...colHeights];
+                          nextHeights[cIdx] = Math.max(1, height - 1);
+                          updateGridConfig({ colHeights: nextHeights });
+                        }}
+                        className="w-5.5 h-5.5 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-xs cursor-pointer select-none transition"
+                      >-</button>
+                      <span className="text-xs font-bold text-slate-200 w-4 text-center">{height}</span>
+                      <button
+                        onClick={() => {
+                          const nextHeights = [...colHeights];
+                          nextHeights[cIdx] = Math.min(50, height + 1);
+                          updateGridConfig({ colHeights: nextHeights });
+                        }}
+                        className="w-5.5 h-5.5 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-xs cursor-pointer select-none transition"
+                      >+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1330,6 +1404,14 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             >
               {seatingGrid.map((seat, i) => {
                 const isSelected = selectedSeatIndex === i;
+                if (!seat.isValidSeat) {
+                  return (
+                    <div
+                      key={i}
+                      className="relative p-3.5 bg-transparent border border-transparent min-h-[90px] print:min-h-[70px] select-none pointer-events-none opacity-0"
+                    />
+                  );
+                }
                 return (
                   <div
                     key={i}
@@ -1357,7 +1439,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                         : "bg-[#12151C] border-slate-850 text-slate-200 hover:border-slate-700 hover:bg-[#12151C]/60 print:bg-white print:border-slate-300 print:text-slate-800"
                     }`}
                   >
-                    <span className="absolute top-1 right-1.5 text-[8px] text-slate-500 font-mono">Row {seat.row}-{seat.col}</span>
+                    <span className="absolute top-1 right-1.5 text-[8px] text-slate-500 font-mono">Col {seat.col}</span>
                     
                     {seat.student ? (
                       <>
