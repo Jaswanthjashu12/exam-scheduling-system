@@ -96,6 +96,7 @@ export default function ConfigurationTab({
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [selectedAccs, setSelectedAccs] = useState<AccommodationType[]>([]);
   const [studentFilterYear, setStudentFilterYear] = useState<string>("all");
+  const [studentFilterBranch, setStudentFilterBranch] = useState<string>("all");
 
   // New invigilator input status
   const [newInvigId, setNewInvigId] = useState("");
@@ -1439,7 +1440,7 @@ export default function ConfigurationTab({
               <div className="lg:col-span-2 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-xs font-medium text-slate-404 text-slate-400">Active Enrolled Students</h3>
+                    <h3 className="text-xs font-medium text-slate-400">Active Enrolled Students</h3>
                     <select
                       value={studentFilterYear}
                       onChange={(e) => setStudentFilterYear(e.target.value)}
@@ -1450,6 +1451,21 @@ export default function ConfigurationTab({
                       <option value="2">Year 2</option>
                       <option value="3">Year 3</option>
                       <option value="4">Year 4</option>
+                    </select>
+                    
+                    <select
+                      value={studentFilterBranch}
+                      onChange={(e) => setStudentFilterBranch(e.target.value)}
+                      className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="all">🎓 View All Branches</option>
+                      {Array.from(new Set(students.map((s) => s.branch).filter(Boolean)))
+                        .sort()
+                        .map((branch) => (
+                          <option key={branch} value={branch}>
+                            {branch}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <button onClick={() => openImportModal('students')} className="text-emerald-400 hover:text-emerald-300 cursor-pointer font-semibold flex items-center gap-1 select-none bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition hover:bg-emerald-500/15 text-[11px]">
@@ -1472,9 +1488,9 @@ export default function ConfigurationTab({
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-xs text-slate-300">
                       {(() => {
-                        const filteredStudents = studentFilterYear === "all"
-                          ? students
-                          : students.filter((s) => String(s.year || 1) === studentFilterYear);
+                        const filteredStudents = students
+                          .filter((s) => studentFilterYear === "all" || String(s.year || 1) === studentFilterYear)
+                          .filter((s) => studentFilterBranch === "all" || (s.branch && s.branch.trim().toUpperCase() === studentFilterBranch.trim().toUpperCase()));
 
                         if (filteredStudents.length === 0) {
                           return (
