@@ -81,8 +81,8 @@ export default function SchedulerTab({
   const [newCourseYear, setNewCourseYear] = useState<number>(1);
   const [newCourseDuration, setNewCourseDuration] = useState(120);
   const [newCoursePriority, setNewCoursePriority] = useState<"High" | "Medium" | "Low">("Medium");
-  const getRoomOccupancyInSlot = (roomId: string, slotId: string) => {
-    const roomEntries = entries.filter((e) => e.timeslotId === slotId && e.roomId === roomId);
+  const getRoomOccupancyInSlot = (roomId: string, slotId: string, excludeCourseId?: string) => {
+    const roomEntries = entries.filter((e) => e.timeslotId === slotId && e.roomId === roomId && e.courseId !== excludeCourseId);
     let totalOccupancy = 0;
     
     for (const ent of roomEntries) {
@@ -125,6 +125,16 @@ export default function SchedulerTab({
       const assignments = saved ? JSON.parse(saved) : [];
       const arrivals = assignments
         .filter((a: any) => a.slotId === slotId && a.toRoomId === roomId)
+        .filter((a: any) => {
+          if (!excludeCourseId) return true;
+          const sampleId = a.studentIds[0];
+          if (!sampleId) return true;
+          const s = students.find((stu) => stu.id === sampleId);
+          if (s && s.courses.some(c => c.trim().toUpperCase() === excludeCourseId.trim().toUpperCase())) {
+            return false;
+          }
+          return true;
+        })
         .reduce((sum: number, a: any) => sum + (a.studentIds?.length || 0), 0);
       totalOccupancy += arrivals;
     } catch (e) {}
@@ -1148,7 +1158,7 @@ export default function SchedulerTab({
                             {rooms.filter((room) => {
                               const isChecked = unschedRoomIds.includes(room.id);
                               if (isChecked) return true;
-                              const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId);
+                              const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId, selectedUnscheduledCourse || undefined);
                               return occupancy < room.capacity;
                             }).length === 0 && (
                               <span className="text-[10px] text-slate-500 col-span-2">All rooms are filled in this timeslot</span>
@@ -1156,7 +1166,7 @@ export default function SchedulerTab({
                             {rooms.filter((room) => {
                               const isChecked = unschedRoomIds.includes(room.id);
                               if (isChecked) return true;
-                              const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId);
+                              const occupancy = getRoomOccupancyInSlot(room.id, unschedSlotId, selectedUnscheduledCourse || undefined);
                               return occupancy < room.capacity;
                             }).map((room) => {
                               const isChecked = unschedRoomIds.includes(room.id);
@@ -1359,7 +1369,7 @@ export default function SchedulerTab({
                   {rooms.filter((room) => {
                     const isChecked = moveRoomIds.includes(room.id);
                     if (isChecked) return true;
-                    const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId);
+                    const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId, editingEntry?.courseId || undefined);
                     return occupancy < room.capacity;
                   }).map((room) => {
                     const isChecked = moveRoomIds.includes(room.id);
@@ -1386,7 +1396,7 @@ export default function SchedulerTab({
                   {rooms.filter((room) => {
                     const isChecked = moveRoomIds.includes(room.id);
                     if (isChecked) return true;
-                    const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId);
+                    const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId, editingEntry?.courseId || undefined);
                     return occupancy < room.capacity;
                   }).length === 0 && (
                     <span className="text-[10px] text-slate-500 col-span-2">All rooms are filled in this timeslot</span>
