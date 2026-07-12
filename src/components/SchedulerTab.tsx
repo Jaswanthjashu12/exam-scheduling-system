@@ -55,6 +55,7 @@ export default function SchedulerTab({
   const [editingEntry, setEditingEntry] = useState<ScheduleEntry | null>(null);
   const [moveSlotId, setMoveSlotId] = useState("");
   const [moveRoomId, setMoveRoomId] = useState("");
+  const [moveRoomIds, setMoveRoomIds] = useState<string[]>([]);
   const [moveInvigId, setMoveInvigId] = useState("");
   const [moveInvigId2, setMoveInvigId2] = useState("");
   
@@ -385,34 +386,50 @@ export default function SchedulerTab({
   const handleEditClick = (entry: ScheduleEntry) => {
     setEditingEntry(entry);
     setMoveSlotId(entry.timeslotId);
+    
+    // Load all rooms assigned to this course in this slot
+    const courseEntriesInSlot = entries.filter((e) => e.timeslotId === entry.timeslotId && e.courseId === entry.courseId);
+    const scheduledRoomIds = courseEntriesInSlot.map((e) => e.roomId);
+    setMoveRoomIds(scheduledRoomIds);
     setMoveRoomId(entry.roomId);
+    
     const invIds = entry.invigilatorId ? entry.invigilatorId.split(",") : [];
     setMoveInvigId(invIds[0] || "");
     setMoveInvigId2(invIds[1] || "");
-    triggerInstantValidation(entry.courseId, entry.timeslotId, entry.roomId, entry.invigilatorId);
+    triggerInstantValidation(entry.courseId, entry.timeslotId, scheduledRoomIds, entry.invigilatorId);
   };
 
-  const handleDropdownChange = (field: "slot" | "room" | "invig" | "invig2", val: string) => {
+  const handleDropdownChange = (field: "slot" | "room" | "rooms" | "invig" | "invig2", val: any) => {
     if (!editingEntry) return;
     let s = moveSlotId;
-    let r = moveRoomId;
+    let rIds = moveRoomIds;
     let i1 = moveInvigId;
     let i2 = moveInvigId2;
 
     if (field === "slot") { s = val; setMoveSlotId(val); }
-    if (field === "room") { r = val; setMoveRoomId(val); }
+    if (field === "rooms") { rIds = val; setMoveRoomIds(val); }
     if (field === "invig") { i1 = val; setMoveInvigId(val); }
     if (field === "invig2") { i2 = val; setMoveInvigId2(val); }
 
     const combined = [i1, i2].filter(Boolean).join(",");
-    triggerInstantValidation(editingEntry.courseId, s, r, combined);
+    triggerInstantValidation(editingEntry.courseId, s, rIds, combined);
   };
 
   // Instant Validation check to satisfy FR-9 (All changes must be validated)
-  const triggerInstantValidation = (courseId: string, slotId: string, roomId: string, invigId: string) => {
-    const tempEntries = entries.map((e) =>
-      e.id === (editingEntry?.id || "") ? { ...e, timeslotId: slotId, roomId: roomId, invigilatorId: invigId } : e
+  const triggerInstantValidation = (courseId: string, slotId: string, roomIds: string[], invigId: string) => {
+    const filtered = entries.filter(
+      (e) => !(e.courseId === courseId && e.timeslotId === slotId)
     );
+    const tempEntries = [
+      ...filtered,
+      ...roomIds.map((rId) => ({
+        id: `temp_${courseId}_${rId}`,
+        courseId,
+        timeslotId: slotId,
+        roomId: rId,
+        invigilatorId: invigId,
+      })),
+    ];
 
     const weights = { ...DEFAULT_WEIGHTS, strictBranchSeparation };
     const reports = getConflictReport(tempEntries, courses, students, rooms, invigilators, weights);
@@ -420,14 +437,14 @@ export default function SchedulerTab({
     // Split to check warning overlaps on all proctors
     const invIds = invigId ? invigId.split(",") : [];
     const specificWarnings = reports
-      .filter((rep) => rep.id.includes(courseId) || rep.id.includes(roomId) || invIds.some(id => rep.id.includes(id)))
+      .filter((rep) => rep.id.includes(courseId) || roomIds.some(rId => rep.id.includes(rId)) || invIds.some(id => rep.id.includes(id)))
       .map((rep) => `${rep.type} - ${rep.category}: ${rep.message}`);
 
     // Check room size
-    const roomObj = rooms.find((r) => r.id === roomId);
+    const totalCapacity = roomIds.reduce((sum, rId) => sum + (rooms.find(r => r.id === rId)?.capacity || 30), 0);
     const studCount = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === courseId.trim().toUpperCase())).length;
-    if (roomObj && studCount > roomObj.capacity) {
-      specificWarnings.push(`Hard Room Overflow: Enrolled students (${studCount} seats) exceeds room capacity (${roomObj.capacity} seats)`);
+    if (roomIds.length > 0 && studCount > totalCapacity) {
+      specificWarnings.push(`Hard Room Overflow: Enrolled students (${studCount} seats) exceeds total room capacities (${totalCapacity} seats)`);
     }
 
     setValidationReport(specificWarnings);
@@ -435,18 +452,31 @@ export default function SchedulerTab({
 
   const saveManualOverride = async () => {
     if (!editingEntry) return;
+    if (moveRoomIds.length === 0) {
+      alert("Please select at least one room.");
+      return;
+    }
 
     const combinedInvigId = [moveInvigId, moveInvigId2].filter(Boolean).join(",");
-    const updated = entries.map((e) =>
-      e.id === editingEntry.id
-        ? { ...e, timeslotId: moveSlotId, roomId: moveRoomId, invigilatorId: combinedInvigId }
-        : e
+
+    // Filter out all previous entries for this course in the current slot
+    const filtered = entries.filter(
+      (e) => !(e.courseId === editingEntry.courseId && e.timeslotId === editingEntry.timeslotId)
     );
-    setEntries(updated);
+
+    const newEntries = moveRoomIds.map((rId, idx) => ({
+      id: `ent_${editingEntry.courseId}_${rId}_${Date.now()}`,
+      courseId: editingEntry.courseId,
+      timeslotId: moveSlotId,
+      roomId: rId,
+      invigilatorId: idx === 0 ? combinedInvigId : "", // default proctors to the first room
+    }));
+
+    setEntries([...filtered, ...newEntries]);
 
     // Queue simulated notification event logs to trigger FR-10 requirement
     const crs = courses.find((c) => c.id === editingEntry.courseId);
-    const rm = rooms.find((r) => r.id === moveRoomId);
+    const firstRoom = rooms.find((r) => r.id === moveRoomIds[0]);
     const ts = DEFAULT_TIMESLOTS.find((t) => t.id === moveSlotId);
     const inv = invigilators.find((i) => i.id === moveInvigId);
 
@@ -1322,20 +1352,46 @@ export default function SchedulerTab({
                 </select>
               </div>
 
-              {/* Room dropdown */}
+              {/* Room dropdown / checkboxes */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5">Reallocate Exam Hall Room</label>
-                <select
-                  value={moveRoomId}
-                  onChange={(e) => handleDropdownChange("room", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#0A0C10] rounded-lg focus:outline-none text-slate-200 font-medium"
-                >
-                  {rooms.map((rm) => (
-                    <option key={rm.id} value={rm.id} className="bg-[#12151C] text-slate-200">
-                      {rm.name} - Cap: {rm.capacity} seats ({rm.building}{rm.block ? ` - ${rm.block}` : ""})
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">Reallocate Exam Hall Rooms (Select Multiple)</label>
+                <div className="grid grid-cols-2 gap-1.5 max-h-28 overflow-y-auto border border-slate-700 rounded p-2 bg-[#0A0C10]">
+                  {rooms.filter((room) => {
+                    const isChecked = moveRoomIds.includes(room.id);
+                    if (isChecked) return true;
+                    const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId);
+                    return occupancy < room.capacity;
+                  }).map((room) => {
+                    const isChecked = moveRoomIds.includes(room.id);
+                    return (
+                      <label key={room.id} className="flex items-center gap-1.5 text-[10px] text-slate-200 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            let nextIds = [];
+                            if (e.target.checked) {
+                              nextIds = [...moveRoomIds, room.id];
+                            } else {
+                              nextIds = moveRoomIds.filter((id) => id !== room.id);
+                            }
+                            handleDropdownChange("rooms", nextIds);
+                          }}
+                          className="accent-blue-500 rounded cursor-pointer"
+                        />
+                        <span className="truncate" title={room.name}>{room.name} ({room.capacity})</span>
+                      </label>
+                    );
+                  })}
+                  {rooms.filter((room) => {
+                    const isChecked = moveRoomIds.includes(room.id);
+                    if (isChecked) return true;
+                    const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId);
+                    return occupancy < room.capacity;
+                  }).length === 0 && (
+                    <span className="text-[10px] text-slate-500 col-span-2">All rooms are filled in this timeslot</span>
+                  )}
+                </div>
               </div>
 
               {/* Invigilator dropdown */}
