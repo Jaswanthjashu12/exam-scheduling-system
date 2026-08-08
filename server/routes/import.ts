@@ -5,7 +5,8 @@ import fs from 'fs';
 import {
   createStudent, createCourse, createRoom, createInvigilator,
   getAllStudents, getAllCourses, getAllRooms, getAllInvigilators,
-  deleteStudent, deleteCourse, deleteRoom, deleteInvigilator
+  deleteStudent, deleteCourse, deleteRoom, deleteInvigilator,
+  updateStudent
 } from '../db';
 import { Student, Course, Room, Invigilator, AccommodationType } from '../../src/types';
 

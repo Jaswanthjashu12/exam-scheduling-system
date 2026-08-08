@@ -142,6 +142,7 @@ export default function SchedulerTab({
     return totalOccupancy;
   };
   const [newRoomId, setNewRoomId] = useState("");
+  const [newSlotId, setNewSlotId] = useState("");
   const [newInvigId, setNewInvigId] = useState("");
   const [newStudentCount, setNewStudentCount] = useState(15);
 
@@ -487,6 +488,7 @@ export default function SchedulerTab({
     // Queue simulated notification event logs to trigger FR-10 requirement
     const crs = courses.find((c) => c.id === editingEntry.courseId);
     const firstRoom = rooms.find((r) => r.id === moveRoomIds[0]);
+    const rm = firstRoom;
     const ts = DEFAULT_TIMESLOTS.find((t) => t.id === moveSlotId);
     const inv = invigilators.find((i) => i.id === moveInvigId);
 
