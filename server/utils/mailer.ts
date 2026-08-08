@@ -14,7 +14,7 @@ console.log('[Mailer] SMTP_USER:', process.env.SMTP_USER || '(not set)');
 console.log('[Mailer] SMTP_PASS:', process.env.SMTP_PASS ? '***set***' : '(not set)');
 console.log('[Mailer] SMTP_FROM:', process.env.SMTP_FROM || '(not set)');
 
-const disableEmails = true; // Hardcoded to true to stop sending mails as requested
+const disableEmails = process.env.DISABLE_EMAILS === 'true';
 
 if (disableEmails) {
   console.log('[Mailer] Email sending is DISABLED via environment configuration.');
