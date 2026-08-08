@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { Course, Room, Student, Invigilator, ScheduleEntry } from "../types";
 import { DEFAULT_TIMESLOTS, getTimeslotExact } from "../utils/solver";
-import { Users, Info, ShieldAlert, Check, HelpCircle, AlertTriangle, Move, RotateCcw, Printer, Mail, Loader2, ArrowRightCircle, LogIn } from "lucide-react";
+import { Users, Info, ShieldAlert, Check, HelpCircle, AlertTriangle, Move, RotateCcw, Printer, Mail, Loader2, ArrowRightCircle, LogIn, Download } from "lucide-react";
 import * as api from "../api/client";
 
 interface SeatingTabProps {
@@ -25,6 +25,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   const [selectedSlotId, setSelectedSlotId] = useState("Day-1-Morning");
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [sendingPlan, setSendingPlan] = useState(false);
+  const [exportingImage, setExportingImage] = useState(false);
   const [sendSuccessMessage, setSendSuccessMessage] = useState<string | null>(null);
   const [autoSortMode, setAutoSortMode] = useState<"anti-cheat" | "alt-cols" | "alt-rows" | "roll-number" | "branch">(() => {
     return (localStorage.getItem("exam_scheduler_autosort_mode_v2") as any) || "anti-cheat";
@@ -992,6 +993,30 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   };
 
+  const handleExportImage = async () => {
+    const element = document.getElementById("seating-floor-plan-grid");
+    if (!element) return;
+    setExportingImage(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(element, {
+        backgroundColor: "#12151C",
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const link = document.createElement("a");
+      link.download = `seating_plan_${roomObj?.name || "classroom"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (err) {
+      console.error("Failed to capture seating layout image:", err);
+      alert("Failed to export seating layout as image.");
+    } finally {
+      setExportingImage(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {sendSuccessMessage && (
@@ -1033,6 +1058,27 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 title="Print this layout as a PDF to tape on the classroom door"
               >
                 <Printer className="w-3.5 h-3.5" /> Export PDF
+              </button>
+
+              <button 
+                onClick={handleExportImage}
+                disabled={exportingImage}
+                className={`px-3 py-1 text-white text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                  exportingImage 
+                    ? "bg-slate-800 border border-slate-700/60 text-slate-400 cursor-not-allowed"
+                    : "bg-violet-600 hover:bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.3)]"
+                }`}
+                title="Download this seating plan layout as a PNG image"
+              >
+                {exportingImage ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Rendering...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" /> Download PNG
+                  </>
+                )}
               </button>
 
               {currentRoomId && (
@@ -1349,7 +1395,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       {currentRoomId ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Visual Seating Map */}
-          <div className="lg:col-span-2 bg-[#12151C] print:bg-white print:border-slate-300 p-6 print:p-0 rounded-2xl border border-slate-800 space-y-6 print:space-y-4">
+          <div id="seating-floor-plan-grid" className="lg:col-span-2 bg-[#12151C] print:bg-white print:border-slate-300 p-6 print:p-0 rounded-2xl border border-slate-800 space-y-6 print:space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800/80 print:border-slate-300 pb-4">
               <div>
                 <h3 className="text-xs font-semibold text-slate-400 print:text-slate-800 uppercase tracking-widest">Floor Plan Grid Matrix</h3>
