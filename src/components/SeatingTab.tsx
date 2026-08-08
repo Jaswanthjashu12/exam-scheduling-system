@@ -1436,7 +1436,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                         ? "bg-[#0A0C10]/40 border-dashed border-slate-850 text-slate-500 hover:border-slate-700 hover:bg-[#0A0C10]/60 print:bg-slate-50 print:border-slate-300 print:text-slate-400"
                         : seat.isRisk && !singleYearRoom
                         ? "bg-amber-950/30 border-amber-850 text-amber-300 shadow-lg hover:border-amber-700 print:bg-amber-50 print:border-amber-400 print:text-amber-800"
-                        : "bg-[#12151C] border-slate-850 text-slate-200 hover:border-slate-700 hover:bg-[#12151C]/60 print:bg-white print:border-slate-300 print:text-slate-800"
+                        : "bg-[#12151C] border-slate-850 text-slate-200 hover:border-slate-700 hover:bg-[#12151C]/60 print:bg-indigo-50 print:border-indigo-350 print:text-indigo-950"
                     }`}
                   >
                     <span className="absolute top-1 right-1.5 text-[8px] text-slate-500 font-mono">Col {seat.col}</span>
