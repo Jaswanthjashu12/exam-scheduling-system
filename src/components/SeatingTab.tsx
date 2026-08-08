@@ -8,6 +8,7 @@ import { Course, Room, Student, Invigilator, ScheduleEntry } from "../types";
 import { DEFAULT_TIMESLOTS, getTimeslotExact } from "../utils/solver";
 import { Users, Info, ShieldAlert, Check, HelpCircle, AlertTriangle, Move, RotateCcw, Printer, Mail, Loader2, ArrowRightCircle, LogIn, Download } from "lucide-react";
 import * as api from "../api/client";
+import html2canvas from "html2canvas";
 
 interface SeatingTabProps {
   courses: Course[];
@@ -995,23 +996,28 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   const handleExportImage = async () => {
     const element = document.getElementById("seating-floor-plan-grid");
-    if (!element) return;
+    if (!element) {
+      alert("Seating floor plan grid element not found!");
+      return;
+    }
     setExportingImage(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(element, {
         backgroundColor: "#12151C",
         scale: 2,
         useCORS: true,
-        logging: false
+        allowTaint: true,
+        logging: true
       });
       const link = document.createElement("a");
       link.download = `seating_plan_${roomObj?.name || "classroom"}.png`;
       link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
       link.click();
-    } catch (err) {
+      document.body.removeChild(link);
+    } catch (err: any) {
       console.error("Failed to capture seating layout image:", err);
-      alert("Failed to export seating layout as image.");
+      alert(`Failed to export seating layout as image: ${err.message || err}`);
     } finally {
       setExportingImage(false);
     }
