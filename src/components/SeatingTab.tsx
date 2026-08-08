@@ -1001,7 +1001,27 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       return;
     }
     setExportingImage(true);
+
+    // 1. Get all style tags in the head
+    const styleElements = Array.from(document.querySelectorAll("style"));
+    const originalContents = styleElements.map(el => el.innerHTML);
+
     try {
+      // 2. Replace oklch(...) colors with standard RGB colors to prevent html2canvas parsing crash
+      styleElements.forEach(el => {
+        if (el.innerHTML.includes("oklch")) {
+          const newContent = el.innerHTML.replace(/oklch\(\s*([0-9.]+)[^)]+\)/g, (match, lightness) => {
+            const l = parseFloat(lightness);
+            if (isNaN(l)) return "rgb(255, 255, 255)";
+            if (l > 0.8) return "rgb(255, 255, 255)";   // light text/borders
+            if (l > 0.6) return "rgb(226, 232, 240)";   // slate-200
+            if (l > 0.4) return "rgb(100, 116, 139)";   // slate-500
+            return "rgb(15, 23, 42)";                   // slate-900 / dark bg
+          });
+          el.innerHTML = newContent;
+        }
+      });
+
       const canvas = await html2canvas(element, {
         backgroundColor: "#12151C",
         scale: 2,
@@ -1019,6 +1039,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       console.error("Failed to capture seating layout image:", err);
       alert(`Failed to export seating layout as image: ${err.message || err}`);
     } finally {
+      // 3. Restore original styles so the web app UI doesn't lose its vibrant gradients
+      styleElements.forEach((el, index) => {
+        el.innerHTML = originalContents[index];
+      });
       setExportingImage(false);
     }
   };
