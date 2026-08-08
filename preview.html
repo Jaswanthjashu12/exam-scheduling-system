@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ExamScheduler – Academic Timetable Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0a0e1a;color:#e2e8f0;min-height:100vh}
+
+/* ─── LOGIN ─────────────────────────────────────────────────── */
+#loginPage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at 50% 0%,#1a1a3e 0%,#0a0e1a 60%)}
+.login-logo{width:64px;height:64px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:1.2rem;box-shadow:0 0 32px rgba(99,102,241,0.4)}
+.login-title{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-0.5px}
+.login-sub{color:#94a3b8;font-size:.9rem;margin-top:.3rem}
+.login-badges{display:flex;gap:.5rem;margin-top:.9rem;flex-wrap:wrap;justify-content:center}
+.badge{background:#1e2540;border:1px solid #2d3461;color:#94a3b8;padding:.3rem .85rem;border-radius:20px;font-size:.78rem}
+.login-card{background:#111827;border:1px solid #1e2537;border-radius:16px;width:100%;max-width:440px;margin-top:1.8rem;overflow:hidden}
+.login-tabs{display:flex;border-bottom:1px solid #1e2537}
+.login-tab{flex:1;padding:.95rem;text-align:center;cursor:pointer;font-size:.9rem;font-weight:600;color:#64748b;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:all .2s}
+.login-tab.active{color:#fff;border-bottom:2px solid #6366f1}
+.login-form{padding:1.6rem}
+.field-label{font-size:.7rem;font-weight:700;letter-spacing:.08em;color:#64748b;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
+.field-wrap{position:relative;margin-bottom:1.1rem}
+.field-wrap .fi{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:1rem;color:#4f46e5}
+.field-wrap input{width:100%;padding:.75rem .85rem .75rem 2.4rem;background:#0d1117;border:1px solid #1e2537;border-radius:10px;color:#e2e8f0;font-size:.9rem;outline:none;transition:border .2s}
+.field-wrap input:focus{border-color:#6366f1}
+.field-wrap .eye{position:absolute;right:.85rem;top:50%;transform:translateY(-50%);cursor:pointer;color:#64748b;font-size:1rem}
+.field-wrap input::placeholder{color:#374151}
+.btn-login{width:100%;padding:.9rem;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;border-radius:10px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.5rem;transition:opacity .2s}
+.btn-login:hover{opacity:.88}
+.login-footer{text-align:center;margin-top:1.1rem;font-size:.82rem;color:#64748b}
+.login-footer a{color:#818cf8;cursor:pointer;text-decoration:none;font-weight:600}
+
+/* ─── APP LAYOUT ────────────────────────────────────────────── */
+#appPage{display:none;height:100vh;overflow:hidden;flex-direction:row}
+#loginPage{position:fixed;top:0;left:0;width:100%;z-index:9999;min-height:100vh;background:radial-gradient(ellipse at 50% 0%,#1a1a3e 0%,#0a0e1a 60%);}
+.sidebar{width:200px;min-width:200px;background:#0d1117;border-right:1px solid #1a2035;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.sidebar-brand{display:flex;align-items:center;gap:.65rem;padding:1rem 1.1rem;border-bottom:1px solid #1a2035}
+.brand-logo{width:34px;height:34px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.brand-text{display:flex;flex-direction:column}
+.brand-text span:first-child{font-size:.6rem;font-weight:700;letter-spacing:.12em;color:#64748b;text-transform:uppercase}
+.brand-text span:last-child{font-size:.82rem;font-weight:700;color:#e2e8f0}
+.sidebar-nav{flex:1;padding:.7rem 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:.7rem;padding:.65rem 1.1rem;cursor:pointer;font-size:.82rem;font-weight:500;color:#64748b;transition:all .18s;border-left:3px solid transparent;position:relative}
+.nav-item:hover{background:#111827;color:#cbd5e1}
+.nav-item.active{background:rgba(99,102,241,.12);color:#a5b4fc;border-left-color:#6366f1}
+.nav-icon{font-size:1rem;width:20px;text-align:center;flex-shrink:0}
+.ai-badge{background:#4f46e5;color:#e0e7ff;font-size:.6rem;font-weight:700;padding:.15rem .4rem;border-radius:4px;margin-left:auto}
+.sidebar-user{padding:.85rem 1.1rem;border-top:1px solid #1a2035;display:flex;align-items:center;gap:.65rem}
+.user-dot{width:8px;height:8px;background:#22c55e;border-radius:50%;margin-left:auto}
+.user-info span:first-child{font-size:.8rem;font-weight:600;color:#cbd5e1;display:block}
+.user-info span:last-child{font-size:.72rem;color:#4b5563;display:block}
+.sign-out-btn{width:calc(100% - 2.2rem);margin:0 1.1rem .9rem;padding:.55rem;background:#1a2035;border:1px solid #1e2537;border-radius:8px;color:#94a3b8;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:all .2s}
+.sign-out-btn:hover{background:#1e2945;color:#cbd5e1}
+
+/* ─── MAIN CONTENT ──────────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;background:#0a0e1a;padding:0}
+.tab-panel{display:none;padding:1.8rem}
+.tab-panel.active{display:block;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── COMPONENTS ────────────────────────────────────────────── */
+.chip{display:inline-block;padding:.25rem .65rem;border-radius:5px;font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.chip-indigo{background:rgba(99,102,241,.2);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}
+
+h1.page-title{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-1px;margin:.5rem 0 .4rem;display:flex;align-items:baseline;gap:.6rem}
+h1.page-title .ver{font-size:.9rem;font-weight:500;color:#64748b}
+.page-desc{color:#64748b;font-size:.85rem;line-height:1.6;max-width:600px;margin-bottom:1.3rem}
+
+.actions-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.actions-label{font-size:.75rem;font-weight:700;color:#64748b;letter-spacing:.08em}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:all .18s}
+.btn-indigo{background:#4f46e5;color:#fff}.btn-indigo:hover{background:#4338ca}
+.btn-red{background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b}.btn-red:hover{background:#991b1b}
+.btn-outline{background:transparent;color:#94a3b8;border:1px solid #1e2537}.btn-outline:hover{border-color:#4f46e5;color:#a5b4fc}
+.btn-green{background:#065f46;color:#6ee7b7}.btn-green:hover{background:#047857}
+.btn-sm{padding:.35rem .75rem;font-size:.78rem}
+.btn-lg{padding:.7rem 1.4rem;font-size:.9rem}
+
+/* ─── STAT CARDS ─────────────────────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.4rem}
+.stat-card{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.1rem 1.3rem;display:flex;align-items:center;gap:1rem}
+.stat-icon-box{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.stat-icon-box.blue{background:rgba(99,102,241,.15);color:#818cf8}
+.stat-icon-box.indigo{background:rgba(79,70,229,.15);color:#818cf8}
+.stat-icon-box.purple{background:rgba(139,92,246,.15);color:#c084fc}
+.stat-icon-box.amber{background:rgba(245,158,11,.15);color:#fbbf24}
+.stat-lbl{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#4b5563;text-transform:uppercase;margin-bottom:.2rem}
+.stat-val{font-size:2rem;font-weight:800;color:#fff;line-height:1}
+
+/* ─── PANELS ─────────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.three-col{display:grid;grid-template-columns:2fr 1fr;gap:1rem}
+.panel{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.3rem}
+.panel-title{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:#64748b;text-transform:uppercase;margin-bottom:.9rem}
+.health-score{text-align:center;padding:1rem}
+.score-num{font-size:3rem;font-weight:800;color:#f59e0b;display:block}
+.score-sub{font-size:.75rem;color:#64748b;margin-top:.3rem;display:flex;align-items:center;justify-content:center;gap:.3rem}
+.overlap-item{background:#1f1a15;border:1px solid #78350f;border-radius:8px;padding:.9rem 1rem;margin-bottom:.7rem}
+.overlap-head{display:flex;align-items:center;gap:.5rem;font-size:.8rem;font-weight:700;color:#f59e0b;margin-bottom:.3rem}
+.overlap-body{font-size:.78rem;color:#94a3b8;line-height:1.5}
+
+/* ─── OPTIMIZER ──────────────────────────────────────────────── */
+.engine-box{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.3rem;margin-bottom:1.2rem;display:flex;align-items:flex-start;gap:1.5rem}
+.engine-desc{flex:1}
+.engine-desc h3{font-size:1rem;font-weight:700;color:#fff;margin-bottom:.4rem}
+.engine-desc p{font-size:.8rem;color:#64748b;line-height:1.5}
+.engine-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.strategy-btn{background:#1a2035;border:1px solid #1e2537;color:#94a3b8;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:all .18s}
+.strategy-btn.selected{background:rgba(99,102,241,.2);border-color:#6366f1;color:#a5b4fc}
+.strategy-btn:hover{border-color:#6366f1;color:#a5b4fc}
+
+.date-bar{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1rem 1.3rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:1rem}
+.date-bar .icon{font-size:1.1rem;color:#6366f1}
+.date-bar-title{font-weight:700;font-size:.9rem;color:#fff;flex:1}
+.date-bar-sub{font-size:.75rem;color:#64748b}
+.date-highlight{color:#818cf8;font-weight:700;font-size:.85rem}
+
+.slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.slot-col-header{background:#111827;border:1px solid #1a2035;border-radius:10px;padding:.75rem 1rem;font-size:.78rem;font-weight:700;color:#94a3b8;display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.6rem}
+.slot-col-header .cnt{background:#1e2537;color:#64748b;font-size:.7rem;padding:.1rem .45rem;border-radius:5px}
+.exam-card{background:#111827;border:1px solid #1a2035;border-radius:10px;padding:.9rem 1rem;margin-bottom:.6rem;position:relative}
+.exam-card-code{font-size:.7rem;font-weight:700;color:#64748b;letter-spacing:.06em;margin-bottom:.2rem;display:flex;align-items:center;gap:.4rem}
+.exam-card-name{font-size:.88rem;font-weight:700;color:#fff;margin-bottom:.5rem}
+.exam-card-meta{font-size:.75rem;color:#64748b;display:flex;flex-direction:column;gap:.2rem}
+.exam-card-meta span{display:flex;align-items:center;gap:.35rem}
+.card-actions{position:absolute;top:.7rem;right:.7rem;display:flex;gap:.35rem}
+.card-act{background:transparent;border:none;color:#374151;cursor:pointer;font-size:.9rem;padding:.2rem;border-radius:4px;transition:color .15s}
+.card-act:hover{color:#94a3b8}
+.pending-panel{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.2rem}
+.pending-empty{display:flex;flex-direction:column;align-items:center;padding:2rem;color:#4b5563;font-size:.82rem;text-align:center;gap:.5rem}
+.notif-panel{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.1rem;margin-top:1rem}
+.notif-title{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:#64748b;text-transform:uppercase;margin-bottom:.1rem;display:flex;align-items:center;justify-content:space-between}
+.sim-badge{background:rgba(99,102,241,.15);color:#818cf8;font-size:.65rem;padding:.15rem .4rem;border-radius:4px}
+
+/* ─── SEATING ────────────────────────────────────────────────── */
+.seating-header{display:flex;align-items:flex-start;justify-content:space-between;background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.3rem;margin-bottom:1.2rem}
+.seating-title h2{font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:.4rem}
+.seating-title p{font-size:.8rem;color:#64748b;max-width:440px;line-height:1.5}
+.seating-header-actions{display:flex;gap:.6rem;align-items:flex-start;flex-shrink:0}
+.seating-selects{display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap;align-items:center}
+select.dark-sel{background:#0d1117;border:1px solid #1e2537;color:#cbd5e1;padding:.5rem .9rem;border-radius:8px;font-size:.8rem;outline:none;cursor:pointer}
+
+.config-row{display:flex;align-items:center;flex-wrap:wrap;gap:1.2rem;margin-bottom:1rem}
+.config-group{display:flex;flex-direction:column;gap:.3rem}
+.config-lbl{font-size:.68rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase}
+.num-ctrl{display:flex;align-items:center;gap:.5rem}
+.num-ctrl button{width:28px;height:28px;background:#1a2035;border:1px solid #1e2537;border-radius:6px;color:#94a3b8;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.num-ctrl button:hover{border-color:#6366f1;color:#818cf8}
+.num-ctrl span{width:32px;text-align:center;font-weight:700;color:#fff;font-size:.9rem}
+.grid-total-box{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:.6rem 1.1rem;text-align:center}
+.grid-total-box .num{font-size:1.8rem;font-weight:800;color:#818cf8;display:block}
+.grid-total-box .sub{font-size:.7rem;color:#64748b}
+
+.floor-header{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+.floor-info h4{font-size:.88rem;font-weight:700;color:#fff}.floor-info p{font-size:.75rem;color:#64748b}
+.info-note{background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:.6rem 1rem;font-size:.78rem;color:#818cf8;max-width:420px}
+
+.proctor-desk{background:#1a2035;border-radius:8px;padding:.7rem;text-align:center;font-size:.78rem;color:#64748b;font-weight:600;margin:1rem 0;letter-spacing:.05em}
+.seat-grid{display:grid;gap:8px;margin:1rem 0;width:100%}
+.seat{width:100%;aspect-ratio:1/1;border-radius:6px;background:#1a2035;border:1px solid #1e2537;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s;color:#94a3b8}
+.seat:hover{border-color:#6366f1;color:#818cf8}
+.seat.occ{background:rgba(99,102,241,.2);border-color:#6366f1;color:#a5b4fc}
+.guide{font-size:.78rem;color:#64748b;display:flex;align-items:flex-start;gap:.4rem;margin-top:.5rem;line-height:1.5}
+.guide-icon{font-size:.9rem;color:#818cf8;flex-shrink:0;margin-top:.1rem}
+
+.proctor-log{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.1rem}
+.strict-badge{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:.8rem 1rem;margin-bottom:.8rem}
+.strict-badge h4{font-size:.8rem;font-weight:700;color:#60a5fa;margin-bottom:.3rem;display:flex;align-items:center;gap:.4rem}
+.strict-badge p{font-size:.75rem;color:#94a3b8;line-height:1.5}
+.strict-badge strong{color:#e2e8f0}
+
+/* ─── DATABASE CONFIG ────────────────────────────────────────── */
+.db-top{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
+.input-field{width:100%;background:#0d1117;border:1px solid #1e2537;border-radius:8px;padding:.7rem .9rem;color:#e2e8f0;font-size:.85rem;outline:none;transition:border .2s;margin-bottom:.3rem}
+.input-field:focus{border-color:#6366f1}
+.input-sm{font-size:.8rem;padding:.5rem .75rem}
+.field-sub{font-size:.75rem;color:#4b5563;margin-bottom:.7rem}
+.branch-tags{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.7rem}
+.branch-tag{background:#1a2035;border:1px solid #1e2537;border-radius:20px;padding:.3rem .75rem;font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:.4rem}
+.branch-tag .rm{cursor:pointer;color:#4b5563;transition:color .15s;font-size:.9rem}.branch-tag .rm:hover{color:#f87171}
+.add-branch-row{display:flex;gap:.6rem;align-items:center}
+.add-branch-row input{flex:1;background:#0d1117;border:1px solid #1e2537;border-radius:8px;padding:.5rem .85rem;color:#e2e8f0;font-size:.82rem;outline:none;transition:border .2s}
+.add-branch-row input:focus{border-color:#6366f1}
+
+.db-tabs{display:flex;gap:0;border-bottom:1px solid #1a2035;margin-bottom:1.2rem}
+.db-tab{padding:.75rem 1.2rem;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;gap:.4rem;transition:all .2s}
+.db-tab.active{color:#fff;border-bottom-color:#6366f1}
+.db-tab-cnt{background:#1e2537;color:#64748b;font-size:.68rem;padding:.1rem .4rem;border-radius:4px;margin-left:.2rem}
+.db-tab.active .db-tab-cnt{background:rgba(99,102,241,.2);color:#818cf8}
+
+.db-content{display:none}.db-content.active{display:grid;grid-template-columns:320px 1fr;gap:1.2rem}
+
+.form-section{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.2rem}
+.form-section h3{font-size:.88rem;font-weight:700;color:#fff;margin-bottom:1rem}
+.form-lbl{font-size:.72rem;font-weight:700;letter-spacing:.08em;color:#64748b;text-transform:uppercase;margin-bottom:.4rem}
+.form-group{margin-bottom:.9rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+select.dark-sel-full{width:100%;background:#0d1117;border:1px solid #1e2537;border-radius:8px;padding:.6rem .85rem;color:#e2e8f0;font-size:.83rem;outline:none;transition:border .2s}
+select.dark-sel-full:focus{border-color:#6366f1}
+.priority-sel{display:flex;gap:.4rem}
+.prio-opt{padding:.4rem .75rem;border-radius:6px;border:1px solid #1e2537;background:#0d1117;color:#94a3b8;font-size:.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.3rem;transition:all .15s}
+.prio-opt.active-red{background:rgba(239,68,68,.1);border-color:#ef4444;color:#f87171}
+.prio-opt.active-amber{background:rgba(245,158,11,.1);border-color:#f59e0b;color:#fbbf24}
+.prio-opt.active-green{background:rgba(16,185,129,.1);border-color:#10b981;color:#34d399}
+
+.course-list-panel{background:#111827;border:1px solid #1a2035;border-radius:12px;padding:1.2rem}
+.list-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.6rem}
+.list-top-left{display:flex;flex-direction:column;gap:.2rem}
+.list-top-left h4{font-size:.82rem;font-weight:700;color:#fff;letter-spacing:.06em;text-transform:uppercase}
+.list-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:.65rem .8rem;border-bottom:1px solid #1a2035;color:#4b5563;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+td{padding:.75rem .8rem;border-bottom:1px solid #111827;color:#cbd5e1;vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.01)}
+.course-code{font-size:.78rem;font-weight:700;color:#e2e8f0}
+.branch-mini-tag{background:#1a2035;color:#94a3b8;padding:.15rem .5rem;border-radius:4px;font-size:.7rem;margin:.1rem}
+.prio-pill{padding:.2rem .55rem;border-radius:20px;font-size:.7rem;font-weight:700}
+.prio-pill.high{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.prio-pill.medium{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+.prio-pill.low{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.2)}
+.tbl-act{display:flex;gap:.3rem}
+.tbl-act button{background:transparent;border:none;cursor:pointer;font-size:.9rem;color:#374151;padding:.2rem;border-radius:4px;transition:color .15s}
+.tbl-act button:hover{color:#94a3b8}
+
+/* ─── SCROLLBAR ──────────────────────────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#1e2537;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#374151}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN PAGE ═══════════════════ -->
+<div id="loginPage">
+  <div style="text-align:center">
+    <div class="login-logo">🏛️</div>
+    <div class="login-title">ExamScheduler</div>
+    <div class="login-sub">Academic Timetable Optimizer • v1.0.4</div>
+    <div class="login-badges">
+      <span class="badge">⚡ AI Solver</span>
+      <span class="badge">🛡️ Anti-Cheat Seating</span>
+      <span class="badge">📊 Smart Reports</span>
+    </div>
+  </div>
+
+  <div class="login-card">
+    <div class="login-tabs">
+      <div class="login-tab active" id="signinTab" onclick="switchLoginTab('signin')">→ Sign In</div>
+      <div class="login-tab" id="registerTab" onclick="switchLoginTab('register')">⊕ Register</div>
+    </div>
+    <div class="login-form">
+      <div class="field-label">🏛️ COLLEGE / INSTITUTION NAME</div>
+      <div class="field-wrap">
+        <span class="fi">🏫</span>
+        <input type="text" placeholder="e.g. State Institute of Technology" id="collegeInput"/>
+      </div>
+      <div class="field-label">USERNAME / ADMIN ID</div>
+      <div class="field-wrap">
+        <span class="fi" style="left:.7rem;font-size:.85rem">👤</span>
+        <input type="text" id="userInput" value="acxsc"/>
+      </div>
+      <div class="field-label">PASSWORD</div>
+      <div class="field-wrap">
+        <span class="fi" style="left:.7rem;font-size:.85rem">🔒</span>
+        <input type="password" id="passInput" value="123456789"/>
+        <span class="eye" onclick="togglePwd()">👁️</span>
+      </div>
+      <button class="btn-login" onclick="doLogin()">→ Sign In to Dashboard</button>
+      <div class="login-footer">Don't have an account? <a onclick="switchLoginTab('register')">Register here</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="appPage" style="display:none;height:100vh;overflow:hidden;flex-direction:row">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">🏛️</div>
+      <div class="brand-text">
+        <span>EXAM SCHEDULER</span>
+        <span id="sidebarUser">acxsc</span>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="navTo('dashboard',this)"><span class="nav-icon">⊞</span> Overview Dashboard</div>
+      <div class="nav-item" onclick="navTo('dbconfig',this)"><span class="nav-icon">⚙️</span> Database Config</div>
+      <div class="nav-item" onclick="navTo('optimizer',this)"><span class="nav-icon">📅</span> Optimizer Calendar</div>
+      <div class="nav-item" onclick="navTo('seating',this)"><span class="nav-icon">📋</span> Seating Layout Plan</div>
+      <div class="nav-item" onclick="navTo('reports',this)"><span class="nav-icon">📄</span> Analysis Reports</div>
+      <div class="nav-item" onclick="navTo('copilot',this)"><span class="nav-icon">🤖</span> AI proctor Copilot <span class="ai-badge">AI</span></div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-info">
+        <span id="sidebarUser2">acxsc</span>
+        <span id="sidebarCollege">gmr</span>
+      </div>
+      <div class="user-dot"></div>
+    </div>
+    <button class="sign-out-btn" onclick="signOut()">⊖ Sign Out</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ─── DASHBOARD ─── -->
+    <div id="panel-dashboard" class="tab-panel active">
+      <div style="margin-bottom:1rem">
+        <span class="chip chip-indigo">ACADEMIC TIMETABLE OPTIMIZER</span>
+        <h1 class="page-title" style="margin-top:.6rem">Optimize Examination Timetables <span class="ver">v1.0.4</span></h1>
+        <p class="page-desc">Welcome to the control center. Import scheduling parameters, automatically compute proctor allocations, map wheelchair floor access, and eliminate student back-to-back overlaps smoothly.</p>
+        <div class="actions-row">
+          <span class="actions-label">⚡ ACTIONS:</span>
+          <button class="btn btn-indigo" onclick="loadPreset()">✚ Load 6-Course / 50-Student Dataset</button>
+          <button class="btn btn-red">🗑 Clear Database (Reset Counts to 0)</button>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon-box blue">🎓</div>
+          <div><div class="stat-lbl">Active Courses</div><div class="stat-val" id="statCourses">6</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box indigo">🏛️</div>
+          <div><div class="stat-lbl">Exam Rooms</div><div class="stat-val" id="statRooms">5</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box purple">👥</div>
+          <div><div class="stat-lbl">Students Roster</div><div class="stat-val" id="statStudents">50</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box amber">💼</div>
+          <div><div class="stat-lbl">Active Proctors</div><div class="stat-val" id="statProctors">10</div></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title">CONSTRAINT HEALTH SCORE</div>
+          <div style="text-align:center;font-size:.75rem;color:#64748b;margin-bottom:1rem">TOTAL TIMETABLE COMPLIANCE</div>
+          <div class="health-score">
+            <span class="score-num" id="healthScore">0%</span>
+            <div class="score-sub">⚡ Dynamic conflicts flagged</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>SIMULTANEOUS EXAM OVERLAPS (25)</span>
+            <a href="#" onclick="navTo('optimizer',document.querySelector('[onclick*=optimizer]'))" style="color:#818cf8;font-size:.78rem;font-weight:700;text-decoration:none">Manual Solver →</a>
+          </div>
+          <div class="overlap-item">
+            <div class="overlap-head">⚠️ Cheating Risk</div>
+            <div class="overlap-body">Timeslot [Day-1-Morning]: Exam room "Lecture Hall A" has 18 instance(s) of same-exam students seated horizontally adjacent.</div>
+          </div>
+          <div class="overlap-item">
+            <div class="overlap-head">⚠️ Cheating Risk</div>
+            <div class="overlap-body">Timeslot [Day-1-Afternoon]: Exam room "Classroom B" has 17 instance(s) of same-exam students seated horizontally adjacent.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── OPTIMIZER CALENDAR ─── -->
+    <div id="panel-optimizer" class="tab-panel">
+      <div class="engine-box">
+        <div class="engine-desc">
+          <h3>Auto-Schedule Allocation Engine</h3>
+          <p>Choose a strategy to generate exam timetables. Run our Heuristic AI Solver or assign deterministically with the Simple Allocator.</p>
+        </div>
+        <div class="engine-actions">
+          <button class="strategy-btn selected" id="stratHeuristic" onclick="selectStrategy('Heuristic')">⚡ Heuristic AI Solver</button>
+          <button class="strategy-btn" id="stratSimple" onclick="selectStrategy('Simple')">= Simple Allocator</button>
+          <button class="strategy-btn" id="stratDept" onclick="selectStrategy('Dept')">☑ Strict Dept Separation</button>
+          <button class="btn btn-outline btn-sm" onclick="alert('Loading simple preset...')">📂 Load Simple Preset</button>
+          <button class="btn btn-red btn-sm">✖ Clear Schedule</button>
+          <button class="btn btn-indigo btn-lg" onclick="runSolver()">▶ Run Heuristic AI Solver</button>
+        </div>
+      </div>
+
+      <div class="date-bar">
+        <span class="date-bar-icon" style="font-size:1.1rem;color:#6366f1">📅</span>
+        <div>
+          <div style="font-weight:700;font-size:.9rem;color:#fff">EXAM CREATOR &amp; DIRECT DATE SCHEDULER</div>
+          <div style="font-size:.75rem;color:#64748b">Add an exam, select a date &amp; room, and assign proctors instantly</div>
+        </div>
+        <span class="date-highlight" style="margin-left:auto">EXAMS START DATE: <strong>13-10-2026</strong></span>
+        <button class="btn btn-indigo btn-sm" onclick="alert('Create exam dialog...')">+ Create &amp; Schedule Exam</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 260px;gap:1rem">
+        <div>
+          <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;color:#64748b;text-transform:uppercase;margin-bottom:.8rem">TIMETABLE SLOT GRID MATRIX</div>
+          <div class="slot-grid">
+            <!-- Slot 1 -->
+            <div>
+              <div class="slot-col-header">
+                <div>
+                  <div style="color:#fff;font-size:.82rem">Tue, Oct 13, 2026</div>
+                  <div style="color:#64748b;font-size:.75rem;margin-top:.1rem">09:00 – 11:00</div>
+                </div>
+                <span class="cnt">1 exams</span>
+              </div>
+              <div class="exam-card">
+                <div class="card-actions"><button class="card-act">✉</button><button class="card-act">✏</button><button class="card-act">🗑</button></div>
+                <div class="exam-card-code">📘 MATH-101</div>
+                <div class="exam-card-name">Basic Mathematics</div>
+                <div class="exam-card-meta">
+                  <span>🏛 Room: Lecture Hall A (18 students)</span>
+                  <span>👤 Proctored by: Prof. John Smith</span>
+                </div>
+              </div>
+            </div>
+            <!-- Slot 2 -->
+            <div>
+              <div class="slot-col-header">
+                <div>
+                  <div style="color:#fff;font-size:.82rem">Tue, Oct 13, 2026</div>
+                  <div style="color:#64748b;font-size:.75rem;margin-top:.1rem">13:00 – 15:00</div>
+                </div>
+                <span class="cnt">1 exams</span>
+              </div>
+              <div class="exam-card">
+                <div class="card-actions"><button class="card-act">✉</button><button class="card-act">✏</button><button class="card-act">🗑</button></div>
+                <div class="exam-card-code">📗 ENG-101</div>
+                <div class="exam-card-name">English Composition</div>
+                <div class="exam-card-meta">
+                  <span>🏛 Room: Classroom B (17 students)</span>
+                  <span>👤 Proctored by: Ms. Clara Davis</span>
+                </div>
+              </div>
+            </div>
+            <!-- Slot 3 -->
+            <div>
+              <div class="slot-col-header">
+                <div>
+                  <div style="color:#fff;font-size:.82rem">Tue, Oct 13, 2026</div>
+                  <div style="color:#64748b;font-size:.75rem;margin-top:.1rem">16:30 – 18:30</div>
+                </div>
+                <span class="cnt">1 exams</span>
+              </div>
+              <div class="exam-card">
+                <div class="card-actions"><button class="card-act">✉</button><button class="card-act">✏</button><button class="card-act">🗑</button></div>
+                <div class="exam-card-code">📕 SCI-101</div>
+                <div class="exam-card-name">General Science</div>
+                <div class="exam-card-meta">
+                  <span>🏛 Room: Computing Lab C (16 students)</span>
+                  <span>👤 Proctored by: Dr. Rajesh Kumar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="pending-panel">
+            <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;color:#64748b;text-transform:uppercase;margin-bottom:.6rem;display:flex;justify-content:space-between"><span>UNSCHEDULED EXAMS (0)</span><span style="color:#f59e0b;font-size:.65rem">PENDING</span></div>
+            <div class="pending-empty">
+              <div style="font-size:2rem">🎉</div>
+              <div><strong style="color:#cbd5e1">All courses scheduled!</strong></div>
+              <div>Zero pending courses</div>
+            </div>
+          </div>
+          <div class="notif-panel">
+            <div class="notif-title"><span>AUTOMATIC NOTIFICATIONS LOG (FR-10)</span><span class="sim-badge">SIMULATED LOGS</span></div>
+            <div style="padding:.7rem 0;color:#4b5563;font-size:.78rem;text-align:center;margin-top:.5rem">Email logs appear here after scheduling.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SEATING LAYOUT PLAN ─── -->
+    <div id="panel-seating" class="tab-panel">
+      <div class="seating-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.5rem">
+            <div style="width:10px;height:10px;background:#22c55e;border-radius:50%"></div>
+            <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;color:#64748b;text-transform:uppercase">CLASSROOM LAYOUT CONFIGURATION</div>
+            <div style="font-size:.72rem;color:#374151">— customise grid dimensions for Lecture Hall A</div>
+          </div>
+          <div class="config-row">
+            <div class="config-group">
+              <div class="config-lbl">NO. OF ROWS</div>
+              <div class="num-ctrl">
+                <button onclick="adjGrid('rows',-1)">−</button>
+                <span id="gridRows">8</span>
+                <button onclick="adjGrid('rows',1)">+</button>
+              </div>
+            </div>
+            <div style="font-size:1.2rem;color:#374151;align-self:flex-end;margin-bottom:.2rem">×</div>
+            <div class="config-group">
+              <div class="config-lbl">NO. OF COLUMNS</div>
+              <div class="num-ctrl">
+                <button onclick="adjGrid('cols',-1)">−</button>
+                <span id="gridCols">9</span>
+                <button onclick="adjGrid('cols',1)">+</button>
+              </div>
+            </div>
+            <div style="font-size:1.2rem;color:#374151;align-self:flex-end;margin-bottom:.2rem">=</div>
+            <div class="config-group">
+              <div class="config-lbl">SEATS PER COLUMN</div>
+              <div class="num-ctrl">
+                <button onclick="adjGrid('spc',-1)">−</button>
+                <span id="gridSpc">8</span>
+                <button onclick="adjGrid('spc',1)">+</button>
+              </div>
+            </div>
+            <div class="config-group">
+              <div class="config-lbl">AUTO-FILL PATTERN</div>
+              <select class="dark-sel">
+                <option>Alternate Columns</option>
+                <option>Row by Row</option>
+                <option>Column by Column</option>
+              </select>
+            </div>
+            <div class="config-group">
+              <div class="config-lbl">ANTI-CHEAT COLUMN GAPS</div>
+              <div style="display:flex;flex-direction:column;gap:.3rem">
+                <label style="font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:.4rem"><input type="checkbox" checked/> Strict 1-Col Gap</label>
+                <label style="font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:.4rem"><input type="checkbox" checked/> Interleave Depts</label>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:1.2rem">
+            <div class="config-group">
+              <div class="config-lbl">ARRANGEMENT FLOW</div>
+              <select class="dark-sel"><option>Column-wise (Vertical)</option><option>Row-wise (Horizontal)</option></select>
+            </div>
+            <div class="grid-total-box">
+              <span class="num" id="gridTotal">72</span>
+              <div class="sub">8 rows × 9 cols</div>
+            </div>
+          </div>
+        </div>
+        <div class="seating-header-actions">
+          <button class="btn btn-indigo btn-sm">📄 Export PDF</button>
+          <button class="btn btn-green btn-sm">✉ Email Seating Plan</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:1rem">
+        <div>
+          <div class="floor-header">
+            <div class="floor-info">
+              <h4>FLOOR PLAN GRID MATRIX</h4>
+              <p>Active Room: <strong>Lecture Hall A (Main Block)</strong> | Total Seats: <strong>60</strong></p>
+            </div>
+            <div class="info-note">Single-exam room — all MATH-101 students. Horizontal adjacency unavoidable; no anti-cheat risk flagged.</div>
+          </div>
+          <div class="seating-selects">
+            <select class="dark-sel"><option>Tue, Oct 13, 2026, 09:00 - 11v</option></select>
+            <select class="dark-sel"><option>Lecture Hall A (Main Blo▾</option></select>
+          </div>
+          <div class="proctor-desk">🎓 EXAMINATION BOARD PLATFORM / PROCTOR DESK</div>
+          <div id="seatGridContainer" style="overflow-x:auto;padding-bottom:.5rem"></div>
+          <div class="guide"><span class="guide-icon">↕</span><span><strong>Manual Placement Guide:</strong> Drag and drop students to rearrange, or simply click a seat to select it (it will glow), then click on another seat to swap them. Keep an eye on the realtime proximity risk indicator!</span></div>
+        </div>
+        <div class="proctor-log">
+          <div class="panel-title">ENROLLED PROCTOR LOG</div>
+          <div class="strict-badge">
+            <h4>🛡 Strict Anti-Cheat Guarantee</h4>
+            <p>Same-exam students may share a <strong>column</strong> (vertically, top/bottom — OK). The layout engine <strong>strictly prevents</strong> same-exam students from sitting <strong>side by side</strong> horizontally, even when course sizes are unequal.</p>
+          </div>
+          <div style="font-size:.78rem;color:#64748b;text-align:center;padding:1rem">Proctor assignments appear after schedule is generated.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── DATABASE CONFIG ─── -->
+    <div id="panel-dbconfig" class="tab-panel">
+      <div class="db-top">
+        <div class="panel">
+          <div class="form-lbl">COLLEGE / UNIVERSITY NAME</div>
+          <input class="input-field" value="gmr" id="collegeNameInput"/>
+          <div class="field-sub">Updates customized headers, scheduler dashboards, print layouts and report forms across all views in real-time.</div>
+        </div>
+        <div class="panel">
+          <div style="display:flex;flex-direction:column;gap:.7rem">
+            <div class="branch-tags" id="branchTags">
+              <span class="branch-tag">Computer Science <span class="rm" onclick="removeBranch(this,'Computer Science')">×</span></span>
+              <span class="branch-tag">Electrical Engineering <span class="rm" onclick="removeBranch(this,'Electrical Engineering')">×</span></span>
+              <span class="branch-tag">Humanities <span class="rm" onclick="removeBranch(this,'Humanities')">×</span></span>
+              <span class="branch-tag">Mechanical Engineering <span class="rm" onclick="removeBranch(this,'Mechanical Engineering')">×</span></span>
+              <span class="branch-tag">Physics <span class="rm" onclick="removeBranch(this,'Physics')">×</span></span>
+              <span class="branch-tag">Science <span class="rm" onclick="removeBranch(this,'Science')">×</span></span>
+            </div>
+            <div class="add-branch-row">
+              <input id="newBranch" placeholder="e.g. Mechanical Engineering"/>
+              <button class="btn btn-indigo btn-sm" onclick="addBranch()">+ Add Branch</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="db-tabs">
+        <div class="db-tab active" onclick="switchDbTab('courses',this)">🎓 Courses <span class="db-tab-cnt">6</span></div>
+        <div class="db-tab" onclick="switchDbTab('rooms',this)">🏛 Rooms <span class="db-tab-cnt">5</span></div>
+        <div class="db-tab" onclick="switchDbTab('students',this)">👥 Students <span class="db-tab-cnt">50</span></div>
+        <div class="db-tab" onclick="switchDbTab('invigilators',this)">💼 Invigilators <span class="db-tab-cnt">10</span></div>
+      </div>
+
+      <!-- COURSES TAB -->
+      <div id="dbtab-courses" class="db-content active">
+        <div class="form-section">
+          <h3>Add New Course</h3>
+          <div class="form-group">
+            <div class="form-lbl">Course Code / ID</div>
+            <input class="input-field" placeholder="e.g. CS-301"/>
+          </div>
+          <div class="form-group">
+            <div class="form-lbl">Course Name</div>
+            <input class="input-field" placeholder="e.g. Database Algorithms"/>
+          </div>
+          <div class="form-group">
+            <div class="form-lbl">Academic Branch</div>
+            <select class="dark-sel-full"><option>-- Choose Branch / Department --</option><option>Computer Science</option><option>Electrical Engineering</option><option>Humanities</option><option>Physics</option><option>Science</option></select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-lbl">Duration (Mins)</div>
+              <select class="dark-sel-full"><option>120 Min</option><option>90 Min</option><option>180 Min</option></select>
+            </div>
+            <div class="form-group">
+              <div class="form-lbl">Priority</div>
+              <select class="dark-sel-full"><option>🟡 Medium</option><option>🔴 High</option><option>🟢 Low</option></select>
+            </div>
+          </div>
+          <button class="btn btn-indigo" style="width:100%;justify-content:center;padding:.7rem" onclick="alert('Course added!')">+ Add Course</button>
+        </div>
+
+        <div class="course-list-panel">
+          <div class="list-top">
+            <div class="list-top-left">
+              <h4>ACTIVE COURSE LISTINGS</h4>
+              <div style="font-size:.75rem;color:#64748b">Manage all exam courses below</div>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+              <select class="dark-sel"><option>📂 View All Branches</option><option>Computer Science</option><option>Humanities</option></select>
+              <button class="btn btn-green btn-sm">⬆ Import Excel</button>
+              <button class="btn btn-outline btn-sm">📋 Load Simple Preset</button>
+              <button class="btn btn-red btn-sm">🔴 Reset Mock</button>
+              <button class="btn btn-red btn-sm">✖ Clear All DB</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Course Code</th>
+                <th>Name</th>
+                <th>Branch</th>
+                <th>Duration</th>
+                <th>Priority</th>
+                <th>Enrollments</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="course-code">MATH-101</div></td>
+                <td>Basic Mathematics</td>
+                <td><span class="branch-mini-tag">Computer Science & Eng</span></td>
+                <td>90 minutes</td>
+                <td><span class="prio-pill high">High</span></td>
+                <td>18 students</td>
+                <td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="course-code">ENG-101</div></td>
+                <td>English Composition</td>
+                <td><span class="branch-mini-tag">Business & Humanities</span></td>
+                <td>90 minutes</td>
+                <td><span class="prio-pill medium">Medium</span></td>
+                <td>17 students</td>
+                <td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="course-code">SCI-101</div></td>
+                <td>General Science</td>
+                <td><span class="branch-mini-tag">Electrical & Electronics</span></td>
+                <td>120 minutes</td>
+                <td><span class="prio-pill low">Low</span></td>
+                <td>16 students</td>
+                <td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="course-code">HIST-101</div></td>
+                <td>World History</td>
+                <td><span class="branch-mini-tag">Business & Humanities</span></td>
+                <td>90 minutes</td>
+                <td><span class="prio-pill medium">Medium</span></td>
+                <td>16 students</td>
+                <td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="course-code">PHY-101</div></td>
+                <td>Engineering Physics</td>
+                <td><span class="branch-mini-tag">Physics</span></td>
+                <td>120 minutes</td>
+                <td><span class="prio-pill high">High</span></td>
+                <td>15 students</td>
+                <td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="course-code">CS-101</div></td>
+                <td>Intro to Computing</td>
+                <td><span class="branch-mini-tag">Computer Science & Eng</span></td>
+                <td>90 minutes</td>
+                <td><span class="prio-pill medium">Medium</span></td>
+                <td>14 students</td>
+                <td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ROOMS TAB -->
+      <div id="dbtab-rooms" class="db-content">
+        <div class="form-section">
+          <h3>Add New Room</h3>
+          <div class="form-group"><div class="form-lbl">Room ID / Code</div><input class="input-field" placeholder="e.g. HALL-A"/></div>
+          <div class="form-group"><div class="form-lbl">Room Name</div><input class="input-field" placeholder="e.g. Lecture Hall A"/></div>
+          <div class="form-group"><div class="form-lbl">Capacity</div><input class="input-field" placeholder="e.g. 60" type="number"/></div>
+          <button class="btn btn-indigo" style="width:100%;justify-content:center;padding:.7rem">+ Add Room</button>
+        </div>
+        <div class="course-list-panel">
+          <div class="list-top"><div class="list-top-left"><h4>EXAM ROOMS</h4></div></div>
+          <table>
+            <thead><tr><th>Room ID</th><th>Name</th><th>Capacity</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>HALL-A</td><td>Lecture Hall A (Main Block)</td><td>60 seats</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>CLASS-B</td><td>Classroom B</td><td>40 seats</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>LAB-C</td><td>Computing Lab C</td><td>30 seats</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>HALL-D</td><td>Science Hall D</td><td>50 seats</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>AUD-E</td><td>Main Auditorium</td><td>120 seats</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- STUDENTS TAB -->
+      <div id="dbtab-students" class="db-content">
+        <div class="form-section">
+          <h3>Add New Student</h3>
+          <div class="form-group"><div class="form-lbl">Student ID</div><input class="input-field" placeholder="e.g. STU-001"/></div>
+          <div class="form-group"><div class="form-lbl">Full Name</div><input class="input-field" placeholder="e.g. Ravi Kumar"/></div>
+          <div class="form-group"><div class="form-lbl">Branch</div><select class="dark-sel-full"><option>-- Choose Branch --</option><option>Computer Science</option><option>Humanities</option></select></div>
+          <button class="btn btn-indigo" style="width:100%;justify-content:center;padding:.7rem">+ Add Student</button>
+        </div>
+        <div class="course-list-panel">
+          <div class="list-top"><div class="list-top-left"><h4>STUDENT ROSTER (50)</h4></div><div><button class="btn btn-green btn-sm">⬆ Import Excel</button></div></div>
+          <table>
+            <thead><tr><th>Student ID</th><th>Name</th><th>Branch</th><th>Courses</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>STU-001</td><td>Ravi Kumar</td><td><span class="branch-mini-tag">Computer Science</span></td><td>3 courses</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>STU-002</td><td>Priya Sharma</td><td><span class="branch-mini-tag">Humanities</span></td><td>2 courses</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>STU-003</td><td>Anjali Patel</td><td><span class="branch-mini-tag">Physics</span></td><td>2 courses</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- INVIGILATORS TAB -->
+      <div id="dbtab-invigilators" class="db-content">
+        <div class="form-section">
+          <h3>Add Invigilator</h3>
+          <div class="form-group"><div class="form-lbl">Invigilator ID</div><input class="input-field" placeholder="e.g. PROF-001"/></div>
+          <div class="form-group"><div class="form-lbl">Full Name</div><input class="input-field" placeholder="e.g. Prof. John Smith"/></div>
+          <div class="form-group"><div class="form-lbl">Department</div><select class="dark-sel-full"><option>-- Choose Department --</option><option>Computer Science</option><option>Mathematics</option></select></div>
+          <button class="btn btn-indigo" style="width:100%;justify-content:center;padding:.7rem">+ Add Invigilator</button>
+        </div>
+        <div class="course-list-panel">
+          <div class="list-top"><div class="list-top-left"><h4>INVIGILATORS (10)</h4></div></div>
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Department</th><th>Assigned</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>PROF-001</td><td>Prof. John Smith</td><td>Mathematics</td><td>2 exams</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>PROF-002</td><td>Ms. Clara Davis</td><td>English</td><td>1 exam</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+              <tr><td>PROF-003</td><td>Dr. Rajesh Kumar</td><td>Science</td><td>1 exam</td><td><div class="tbl-act"><button>✏</button><button>🗑</button></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── REPORTS ─── -->
+    <div id="panel-reports" class="tab-panel">
+      <h1 class="page-title">Analysis Reports</h1>
+      <p class="page-desc">View, download, and email generated reports including hall tickets, attendance sheets, and timetable summaries.</p>
+      <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card"><div class="stat-icon-box blue">📊</div><div><div class="stat-lbl">Reports Generated</div><div class="stat-val">12</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box amber">📧</div><div><div class="stat-lbl">Emails Sent</div><div class="stat-val">48</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box purple">📄</div><div><div class="stat-lbl">PDFs Exported</div><div class="stat-val">7</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">AVAILABLE REPORTS</div>
+        <table>
+          <thead><tr><th>Report Name</th><th>Type</th><th>Generated At</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>Hall Ticket – MATH-101</td><td><span class="chip chip-indigo">Hall Ticket</span></td><td>13 Oct 2026, 08:00</td><td><button class="btn btn-sm btn-indigo">📄 Download PDF</button></td></tr>
+            <tr><td>Seating Chart – Lecture Hall A</td><td><span class="chip chip-indigo">Seating</span></td><td>13 Oct 2026, 08:30</td><td><button class="btn btn-sm btn-indigo">📄 Download PDF</button></td></tr>
+            <tr><td>Attendance Sheet – Day 1</td><td><span class="chip chip-indigo">Attendance</span></td><td>13 Oct 2026, 09:00</td><td><button class="btn btn-sm btn-indigo">📄 Download PDF</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── AI COPILOT ─── -->
+    <div id="panel-copilot" class="tab-panel">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem">
+        <div style="width:44px;height:44px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">🤖</div>
+        <div><h1 class="page-title" style="font-size:1.4rem;margin:0">AI Proctor Copilot</h1><div style="color:#64748b;font-size:.82rem">Powered by Gemini AI — Audit your timetable for conflicts and risks</div></div>
+        <span class="ai-badge" style="font-size:.75rem;padding:.3rem .7rem;border-radius:6px;margin-left:auto">AI</span>
+      </div>
+      <div class="panel" style="min-height:300px">
+        <div class="panel-title">AI AUDIT RESULTS</div>
+        <div style="background:#1a2035;border-radius:10px;padding:1.2rem;margin-bottom:1rem;border-left:3px solid #22c55e">
+          <div style="color:#34d399;font-weight:700;font-size:.85rem;margin-bottom:.4rem">✅ Schedule Validity Check — PASSED</div>
+          <div style="color:#64748b;font-size:.8rem;line-height:1.6">All 6 courses have been assigned valid time slots with no student back-to-back conflicts detected across the 3 scheduled days.</div>
+        </div>
+        <div style="background:#1a2035;border-radius:10px;padding:1.2rem;margin-bottom:1rem;border-left:3px solid #f59e0b">
+          <div style="color:#fbbf24;font-weight:700;font-size:.85rem;margin-bottom:.4rem">⚠️ 25 Seating Proximity Warnings</div>
+          <div style="color:#64748b;font-size:.8rem;line-height:1.6">Same-exam students detected horizontally adjacent in Lecture Hall A and Classroom B. Consider switching to Alternate Column auto-fill pattern to reduce cheating risk.</div>
+        </div>
+        <div style="background:#1a2035;border-radius:10px;padding:1.2rem;border-left:3px solid #6366f1">
+          <div style="color:#818cf8;font-weight:700;font-size:.85rem;margin-bottom:.4rem">💡 AI Recommendation</div>
+          <div style="color:#64748b;font-size:.8rem;line-height:1.6">Run the Heuristic AI Solver with "Strict Dept Separation" enabled to further minimize cross-department student adjacency. Projected risk reduction: 78%.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.6rem;margin-top:1rem">
+        <button class="btn btn-indigo" onclick="alert('Running Gemini AI audit...')">🤖 Run AI Audit</button>
+        <button class="btn btn-outline" onclick="alert('Generating report...')">📊 Generate AI Report</button>
+      </div>
+    </div>
+
+  </div><!-- end main -->
+</div><!-- end appPage -->
+
+<script>
+// ─── LOGIN LOGIC ───────────────────────────────────────────────
+function switchLoginTab(tab) {
+  document.getElementById('signinTab').classList.toggle('active', tab === 'signin');
+  document.getElementById('registerTab').classList.toggle('active', tab === 'register');
+}
+function togglePwd() {
+  const p = document.getElementById('passInput');
+  p.type = p.type === 'password' ? 'text' : 'password';
+}
+function doLogin() {
+  const user = document.getElementById('userInput').value || 'acxsc';
+  const college = document.getElementById('collegeInput').value || 'gmr';
+  document.getElementById('sidebarUser').textContent = user;
+  document.getElementById('sidebarUser2').textContent = user;
+  document.getElementById('sidebarCollege').textContent = college;
+  document.getElementById('loginPage').style.display = 'none';
+  const app = document.getElementById('appPage');
+  app.style.display = 'flex';
+}
+function signOut() {
+  document.getElementById('appPage').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────
+function navTo(id, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const panelId = id === 'dbconfig' ? 'panel-dbconfig' : 'panel-' + id;
+  document.getElementById(panelId).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ─── DATABASE TABS ────────────────────────────────────────────
+function switchDbTab(tab, el) {
+  document.querySelectorAll('.db-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.db-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('dbtab-' + tab).classList.add('active');
+  el.classList.add('active');
+}
+
+// ─── BRANCHES ─────────────────────────────────────────────────
+function addBranch() {
+  const input = document.getElementById('newBranch');
+  const name = input.value.trim();
+  if (!name) return;
+  const tag = document.createElement('span');
+  tag.className = 'branch-tag';
+  tag.innerHTML = name + ' <span class="rm" onclick="removeBranch(this,\'' + name + '\')">×</span>';
+  document.getElementById('branchTags').appendChild(tag);
+  input.value = '';
+}
+function removeBranch(el) { el.parentElement.remove(); }
+
+// ─── GRID CONTROLS ────────────────────────────────────────────
+let gridState = { rows: 8, cols: 9, spc: 8 };
+function adjGrid(key, delta) {
+  gridState[key] = Math.max(1, gridState[key] + delta);
+  document.getElementById('gridRows').textContent = gridState.rows;
+  document.getElementById('gridCols').textContent = gridState.cols;
+  document.getElementById('gridSpc').textContent = gridState.spc;
+  document.getElementById('gridTotal').textContent = gridState.rows * gridState.cols;
+  renderSeatGrid();
+}
+function renderSeatGrid() {
+  const container = document.getElementById('seatGridContainer');
+  container.style.display = 'grid';
+  container.style.gridTemplateColumns = 'repeat(' + gridState.cols + ', minmax(0, 1fr))';
+  container.style.gap = '8px';
+  container.innerHTML = '';
+  const total = gridState.rows * gridState.cols;
+  for (let i = 0; i < total; i++) {
+    const seat = document.createElement('div');
+    seat.className = 'seat' + (i < 18 ? ' occ' : '');
+    seat.textContent = i + 1;
+    seat.onclick = () => seat.classList.toggle('occ');
+    container.appendChild(seat);
+  }
+}
+
+// ─── STRATEGY SELECTION ───────────────────────────────────────
+function selectStrategy(name) {
+  ['Heuristic','Simple','Dept'].forEach(s => {
+    document.getElementById('strat'+s).classList.remove('selected');
+  });
+  document.getElementById('strat'+name).classList.add('selected');
+}
+function runSolver() {
+  const score = Math.floor(Math.random() * 40 + 60);
+  document.getElementById('healthScore').textContent = score + '%';
+  document.getElementById('healthScore').style.color = score >= 80 ? '#22c55e' : '#f59e0b';
+  alert('🤖 Heuristic AI Solver complete!\nTimetable compliance: ' + score + '%\nAll 6 courses scheduled with 0 back-to-back conflicts!');
+}
+function loadPreset() {
+  document.getElementById('statCourses').textContent = '6';
+  document.getElementById('statRooms').textContent = '5';
+  document.getElementById('statStudents').textContent = '50';
+  document.getElementById('statProctors').textContent = '10';
+  alert('✅ 6-Course / 50-Student dataset loaded successfully!');
+}
+
+// ─── INIT ────────────────────────────────────────────────────
+window.onload = () => { renderSeatGrid(); };
+</script>
+</body>
+</html>
