@@ -1,8 +1,72 @@
 import { Router } from 'express';
-import { getAllScheduleEntries, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, bulkReplaceScheduleEntries, clearScheduleEntries, getStudent, getStudentsByCourse } from '../db';
+import { getAllScheduleEntries, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, bulkReplaceScheduleEntries, clearScheduleEntries, getStudent, getStudentsByCourse, getCollege } from '../db';
 import { ScheduleEntry } from '../../src/types';
 import { getInvigilator, getAllInvigilators } from '../db';
 import { sendMail } from '../utils/mailer';
+
+function getProctorEmailHtml(collegeName: string, proctorName: string, courseId: string, timeslotId: string, roomId: string, isUpdate = false): string {
+  const formattedTimeslot = timeslotId.replace(/_/g, ' ');
+  return `
+    <div style="font-family:system-ui,-apple-system,sans-serif;color:#1e293b;max-width:600px;margin:20px auto;padding:0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);padding:28px 30px 22px;">
+        <div style="font-size:11px;color:#94a3b8;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:6px;">🎓 ${collegeName}</div>
+        <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">
+          ${isUpdate ? 'Exam Duty Update' : 'Exam Duty Assignment'}
+        </h1>
+        <p style="margin:6px 0 0;font-size:13px;color:#94a3b8;">Official proctoring allocation details</p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:28px 30px;background:#ffffff;">
+        <p style="font-size:14px;line-height:1.7;color:#334155;margin-top:0;">Dear Professor <strong>${proctorName}</strong>,</p>
+        <p style="font-size:13px;line-height:1.7;color:#64748b;">
+          ${isUpdate ? 'Your proctoring/invigilation duty assignment has been updated.' : 'You have been assigned to invigilate the following exam. Please verify the schedule and report to your venue on time.'}
+        </p>
+
+        <!-- Info Card -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin:20px 0;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;">Assignment Details</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr>
+              <td style="padding:6px 0;color:#64748b;font-weight:600;width:130px;">Invigilator Name</td>
+              <td style="padding:6px 0;color:#0f172a;font-weight:700;">${proctorName}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;color:#64748b;font-weight:600;">Exam / Course</td>
+              <td style="padding:6px 0;color:#0f172a;font-weight:600;font-family:monospace;">${courseId}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;color:#64748b;font-weight:600;">Date &amp; Time</td>
+              <td style="padding:6px 0;color:#0f172a;font-weight:600;">${formattedTimeslot}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;color:#64748b;font-weight:600;">Venue / Room</td>
+              <td style="padding:6px 0;">
+                <span style="background:#0f172a;color:#fff;font-weight:700;padding:4px 10px;border-radius:6px;font-size:12px;">${roomId}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Instructions -->
+        <div style="background:#f1f5f9;border-left:4px solid #475569;border-radius:6px;padding:14px 18px;font-size:12px;line-height:1.7;color:#334155;margin-bottom:20px;">
+          <strong>📋 Proctoring Instructions:</strong><br/>
+          • Please report to the examination control room **20 minutes** prior to start time.<br/>
+          • Collect the student answer scripts, exam question papers, and seating chart.<br/>
+          • Ensure student signatures are recorded on the attendance register.
+        </div>
+
+        <p style="font-size:13px;color:#64748b;line-height:1.6;">If you have any conflicts or require a duty swap, please contact the Examinations Coordinator immediately.</p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 30px;text-align:center;font-size:11px;color:#94a3b8;">
+        This is an automated notification from the Examination Management System. Do not reply to this email.
+      </div>
+    </div>
+  `;
+}
 
 const router = Router();
 
@@ -30,7 +94,9 @@ router.post('/', async (req, res, next) => {
     try {
       const inv = await getInvigilator(invigilatorId);
       if (inv?.email) {
-        await sendMail(inv.email, 'Exam Assignment Notification', `You have been assigned to an exam at ${timeslotId} in room ${roomId}. Please be on time.`);
+        const college = await getCollege().catch(() => ({ name: 'State Institute of Technology' }));
+        const emailHtml = getProctorEmailHtml(college.name, inv.name, courseId, timeslotId, roomId, false);
+        await sendMail(inv.email, 'Exam Duty Assignment Notification', emailHtml);
       }
     } catch (mailErr) {
       console.error('Failed to send assignment email:', mailErr);
@@ -53,7 +119,9 @@ router.put('/:id', async (req, res, next) => {
     try {
       const inv = await getInvigilator(invigilatorId);
       if (inv?.email) {
-        await sendMail(inv.email, 'Exam Assignment Updated', `Your exam assignment has been updated to ${timeslotId} in room ${roomId}. Please be on time.`);
+        const college = await getCollege().catch(() => ({ name: 'State Institute of Technology' }));
+        const emailHtml = getProctorEmailHtml(college.name, inv.name, courseId, timeslotId, roomId, true);
+        await sendMail(inv.email, 'Exam Duty Assignment Updated', emailHtml);
       }
     } catch (mailErr) {
       console.error('Failed to send update email:', mailErr);
@@ -133,7 +201,9 @@ router.post('/:id/notify', async (req, res, next) => {
       return res.status(404).json({ error: 'Assigned invigilator not found in the database.' });
     }
     if (inv.email) {
-      const url = await sendMail(inv.email, 'Exam Assignment Notification', `You have been assigned to an exam at ${entry.timeslotId} in room ${entry.roomId}. Please be on time.`);
+      const college = await getCollege().catch(() => ({ name: 'State Institute of Technology' }));
+      const emailHtml = getProctorEmailHtml(college.name, inv.name, entry.courseId, entry.timeslotId || '', entry.roomId || '', false);
+      const url = await sendMail(inv.email, 'Exam Duty Assignment Notification', emailHtml);
       if (url) {
         logToFile(`[Notify API] Notification email sent successfully to ${inv.email}`);
         return res.json({ message: 'Notification email sent! A test email was generated.', url });
