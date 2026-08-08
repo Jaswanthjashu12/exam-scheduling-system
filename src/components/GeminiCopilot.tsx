@@ -6,7 +6,8 @@
 import React, { useState } from "react";
 import { Course, Room, Student, Invigilator, ScheduleEntry } from "../types";
 import { evaluateSchedule, getConflictReport } from "../utils/solver";
-import { Sparkles, Send, RefreshCw, AlertCircle, CheckCircle, BrainCircuit } from "lucide-react";
+import { Sparkles, Send, RefreshCw, AlertCircle, CheckCircle, BrainCircuit, Wrench } from "lucide-react";
+import { runAutoFix } from "../api/client";
 
 interface GeminiCopilotProps {
   courses: Course[];
@@ -14,11 +15,13 @@ interface GeminiCopilotProps {
   students: Student[];
   invigilators: Invigilator[];
   entries: ScheduleEntry[];
+  onScheduleUpdate?: (newEntries: ScheduleEntry[]) => void;
 }
 
-export default function GeminiCopilot({ courses, rooms, students, invigilators, entries }: GeminiCopilotProps) {
+export default function GeminiCopilot({ courses, rooms, students, invigilators, entries, onScheduleUpdate }: GeminiCopilotProps) {
   const [feedback, setFeedback] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [fixing, setFixing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const triggerAudit = async (customTopic?: string) => {
@@ -50,6 +53,51 @@ export default function GeminiCopilot({ courses, rooms, students, invigilators, 
       setError(err.message || "An error occurred fetching AI audit reports.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAutoFix = async () => {
+    setFixing(true);
+    setError(null);
+    setFeedback("");
+    try {
+      const conflicts = getConflictReport(entries, courses, students, rooms, invigilators);
+      if (conflicts.length === 0) {
+        alert("🎉 No active conflicts found! The schedule is already optimal.");
+        setFixing(false);
+        return;
+      }
+
+      const res = await runAutoFix({
+        schedule: entries,
+        conflicts: conflicts.map((c) => ({ category: c.category, message: c.message })),
+        courses,
+        rooms,
+        invigilators
+      });
+
+      if (res.entries) {
+        if (onScheduleUpdate) {
+          onScheduleUpdate(res.entries);
+        }
+        
+        let summaryMsg = "";
+        if (res.modifications && res.modifications.length > 0) {
+          summaryMsg = `Successfully resolved ${res.modifications.length} conflict(s) using AI! The schedule has been updated.`;
+        } else {
+          summaryMsg = `AI analyzed the conflicts but could not find a risk-free timeslot/room swap. Try allocating more rooms or adjusting invigilator availability.`;
+        }
+
+        if (res.isFallback && res.message) {
+          summaryMsg += `\n\n(Preview Mode: ${res.message})`;
+        }
+        setFeedback(`### 🛠️ AI Auto-Fix Summary\n\n${summaryMsg}`);
+        alert(summaryMsg);
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during AI auto-fix optimization.");
+    } finally {
+      setFixing(false);
     }
   };
 
@@ -86,11 +134,24 @@ export default function GeminiCopilot({ courses, rooms, students, invigilators, 
           
           <button
             onClick={() => triggerAudit()}
-            disabled={loading}
+            disabled={loading || fixing}
             className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition hover:brightness-110 shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
             {loading ? "Analyzing..." : "Trigger Full Academic Audit"}
+          </button>
+
+          <button
+            onClick={handleAutoFix}
+            disabled={loading || fixing}
+            className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition hover:brightness-110 shadow-sm"
+          >
+            {fixing ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Wrench className="w-3.5 h-3.5" />
+            )}
+            {fixing ? "Resolving Conflicts..." : "Auto-Fix Conflicts with AI"}
           </button>
         </div>
 

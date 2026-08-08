@@ -395,3 +395,18 @@ export async function notifyExamAssignment(payload: {
   });
   return handleResponse<{ message: string; sentCount: number; failedCount: number; url?: string }>(res);
 }
+
+export async function runAutoFix(payload: {
+  schedule: ScheduleEntry[];
+  conflicts: any[];
+  courses: Course[];
+  rooms: Room[];
+  invigilators: Invigilator[];
+}): Promise<{ modifications: any[]; entries: ScheduleEntry[]; isFallback: boolean; message?: string }> {
+  const res = await fetch(`${API_BASE}/api/gemini/auto-fix`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<{ modifications: any[]; entries: ScheduleEntry[]; isFallback: boolean; message?: string }>(res);
+}

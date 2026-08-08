@@ -714,6 +714,7 @@ export default function App() {
             students={students}
             invigilators={invigilators}
             entries={entries}
+            onScheduleUpdate={setEntries}
           />
         )}
 

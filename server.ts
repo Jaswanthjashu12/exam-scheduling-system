@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { initDatabase } from "./server/db";
+import { initDatabase, db, getAllScheduleEntries } from "./server/db";
 import coursesRouter from "./server/routes/courses";
 import roomsRouter from "./server/routes/rooms";
 import studentsRouter from "./server/routes/students";
@@ -200,6 +200,126 @@ Generate a highly detailed, coherent, and fun themed dataset. Return ONLY the ra
     } catch (err: any) {
       console.error("Gemini Generate Mock Data Error:", err);
       res.status(500).json({ error: err.message || "Failed to generate themed mock data" });
+    }
+  });
+
+  // Gemini API route to automatically resolve schedule conflicts
+  app.post("/api/gemini/auto-fix", async (req, res) => {
+    try {
+      const { schedule, conflicts, courses, rooms, invigilators } = req.body;
+      
+      let client: GoogleGenAI;
+      try {
+        client = getGeminiClient();
+      } catch (keyErr: any) {
+        // Fallback / Preview Mode: simulate resolving one conflict
+        const mockModifications = [];
+        if (conflicts && conflicts.length > 0 && schedule && schedule.length > 0) {
+          const firstConflict = conflicts[0];
+          const entryToFix = schedule.find((e: any) => 
+            (e.courseId && firstConflict.message.includes(e.courseId)) || 
+            (e.timeslotId && firstConflict.message.includes(e.timeslotId)) ||
+            (e.invigilatorId && firstConflict.message.includes(e.invigilatorId))
+          );
+          if (entryToFix) {
+            // Find a different timeslot from the current one to show a shift
+            const otherSlot = entryToFix.timeslotId === "Day_1_Morning" ? "Day_1_Afternoon" : "Day_1_Morning";
+            mockModifications.push({
+              entryId: entryToFix.id,
+              timeslotId: otherSlot,
+              roomId: entryToFix.roomId,
+              invigilatorId: entryToFix.invigilatorId
+            });
+          }
+        }
+
+        if (mockModifications.length > 0) {
+          const updateStmt = db.prepare('UPDATE schedule_entries SET timeslot_id = COALESCE(?, timeslot_id), room_id = COALESCE(?, room_id), invigilator_id = COALESCE(?, invigilator_id) WHERE id = ?');
+          db.transaction(() => {
+            for (const mod of mockModifications) {
+              updateStmt.run(mod.timeslotId, mod.roomId, mod.invigilatorId, mod.entryId);
+            }
+          })();
+        }
+
+        const updatedEntries = await getAllScheduleEntries();
+        return res.status(200).json({
+          isFallback: true,
+          modifications: mockModifications,
+          entries: updatedEntries,
+          message: "Your Gemini API key is not configured. Running in Preview Mode with simulated resolution."
+        });
+      }
+
+      const prompt = `
+You are an expert academic scheduling optimization engine. 
+Analyze the current schedule, the list of conflicts, and the available courses, rooms, and invigilators.
+Suggest schedule modifications to resolve as many conflicts as possible.
+
+---
+### SCHEDULING RESOURCES
+Courses: ${JSON.stringify(courses)}
+Rooms: ${JSON.stringify(rooms)}
+Invigilators: ${JSON.stringify(invigilators)}
+
+### CURRENT CONFLICTS
+${JSON.stringify(conflicts)}
+
+### CURRENT SCHEDULE
+${JSON.stringify(schedule)}
+---
+
+For each conflict, find alternative timeslots, rooms, or invigilators that are available and resolve the conflict without introducing new ones.
+Provide the output EXACTLY as a JSON object containing a "modifications" key, which is an array of objects.
+Each object in the "modifications" array must contain:
+- "entryId": The ID of the schedule entry to modify (must match one of the current schedule entry IDs).
+- "timeslotId": The new timeslot ID (e.g., "Day_1_Afternoon", "Day_2_Morning", etc.) OR null to keep current.
+- "roomId": The new room ID (e.g., "R-101", etc.) OR null to keep current.
+- "invigilatorId": The new invigilator ID (e.g., "INV-01", etc.) OR null to keep current.
+
+Ensure the returned object is valid JSON. Return ONLY the raw JSON block without markdown formatting or backticks.
+`;
+
+      const response = await client.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const responseText = response.text || "{}";
+      let cleanJson = responseText.trim();
+      if (cleanJson.startsWith("```json")) {
+        cleanJson = cleanJson.substring(7);
+      } else if (cleanJson.startsWith("```")) {
+        cleanJson = cleanJson.substring(3);
+      }
+      if (cleanJson.endsWith("```")) {
+        cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+      }
+
+      const parsedData = JSON.parse(cleanJson.trim());
+      const modifications = parsedData.modifications || [];
+
+      if (modifications.length > 0) {
+        const updateStmt = db.prepare('UPDATE schedule_entries SET timeslot_id = COALESCE(?, timeslot_id), room_id = COALESCE(?, room_id), invigilator_id = COALESCE(?, invigilator_id) WHERE id = ?');
+        db.transaction(() => {
+          for (const mod of modifications) {
+            updateStmt.run(mod.timeslotId, mod.roomId, mod.invigilatorId, mod.entryId);
+          }
+        })();
+      }
+
+      const updatedEntries = await getAllScheduleEntries();
+      res.json({
+        modifications,
+        entries: updatedEntries,
+        isFallback: false
+      });
+    } catch (err: any) {
+      console.error("Gemini Auto-Fix Error:", err);
+      res.status(500).json({ error: err.message || "Failed to generate AI auto-fix solutions" });
     }
   });
 
