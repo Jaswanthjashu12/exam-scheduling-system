@@ -137,6 +137,16 @@ export async function initDatabase(): Promise<void> {
       FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipient TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT,
+      status TEXT NOT NULL,
+      preview_url TEXT,
+      timestamp TEXT NOT NULL
+    );
+
     -- Performance indexes for frequent lookups and JOINs
     CREATE INDEX IF NOT EXISTS idx_student_courses_student ON student_courses(student_id);
     CREATE INDEX IF NOT EXISTS idx_student_courses_course ON student_courses(course_id);
@@ -695,4 +705,35 @@ export async function getCollege(): Promise<{ name: string; examStartDate: strin
 export async function updateCollege(name: string, examStartDate: string): Promise<void> {
   db.prepare('UPDATE colleges SET name = ?, exam_start_date = ? WHERE id = 1')
     .run(name, examStartDate);
+}
+
+// ==========================================
+// EMAIL LOGS
+// ==========================================
+
+export async function logEmail(recipient: string, subject: string, body: string, status: string, previewUrl?: string): Promise<void> {
+  try {
+    db.prepare('INSERT INTO email_logs (recipient, subject, body, status, preview_url, timestamp) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(recipient, subject, body, status, previewUrl || null, new Date().toISOString());
+  } catch (err) {
+    console.error('[SQLite] Failed to write email log:', err);
+  }
+}
+
+export async function getEmailLogs(): Promise<any[]> {
+  try {
+    const rows = db.prepare('SELECT * FROM email_logs ORDER BY timestamp DESC LIMIT 100').all() as any[];
+    return rows.map(r => ({
+      id: r.id,
+      recipient: r.recipient,
+      subject: r.subject,
+      body: r.body,
+      status: r.status,
+      previewUrl: r.preview_url,
+      timestamp: r.timestamp
+    }));
+  } catch (err) {
+    console.error('[SQLite] Failed to query email logs:', err);
+    return [];
+  }
 }

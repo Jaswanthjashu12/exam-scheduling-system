@@ -410,3 +410,8 @@ export async function runAutoFix(payload: {
   });
   return handleResponse<{ modifications: any[]; entries: ScheduleEntry[]; isFallback: boolean; message?: string }>(res);
 }
+
+export async function fetchEmailLogs(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/api/emails/logs`);
+  return handleResponse<any[]>(res);
+}

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import { logEmail } from '../db';
 
 dotenv.config();
 
@@ -74,6 +75,7 @@ export async function sendMail(to: string, subject: string, html: string): Promi
     console.log('Subject:', subject);
     console.log('Body:', html);
     console.log('=== End Email ===');
+    await logEmail(to, subject, html, 'Simulated', 'https://ethereal.email/message/disabled-in-env');
     return 'https://ethereal.email/message/disabled-in-env';
   }
 
@@ -96,8 +98,10 @@ export async function sendMail(to: string, subject: string, html: string): Promi
       if (isEthereal) {
         const url = nodemailer.getTestMessageUrl(info);
         console.log('[Mailer] Ethereal Preview URL: ' + url);
+        await logEmail(to, subject, html, 'Sent (Ethereal)', url || undefined);
         return url as string;
       }
+      await logEmail(to, subject, html, 'Sent');
     } catch (sendErr: any) {
       console.warn(`[Mailer] ❌ Failed to send email to "${to}" via configured SMTP:`, sendErr.message || sendErr);
       
@@ -118,6 +122,7 @@ export async function sendMail(to: string, subject: string, html: string): Promi
           const info = await etherealTransporter.sendMail(mailOptions);
           const url = nodemailer.getTestMessageUrl(info);
           console.log('[Mailer] ✅ Ethereal Fallback sent successfully! Preview URL: ' + url);
+          await logEmail(to, subject, html, 'Sent (Fallback)', url || undefined);
           return url as string;
         } catch (etherealErr: any) {
           console.error('[Mailer] ❌ Ethereal fallback also failed:', etherealErr.message || etherealErr);
@@ -131,6 +136,7 @@ export async function sendMail(to: string, subject: string, html: string): Promi
       console.log('Subject:', subject);
       console.log('Body:', html);
       console.log('=== End Email ===');
+      await logEmail(to, subject, html, 'Failed (Fallback Logged)', 'https://ethereal.email/message/fallback-logged-to-console');
       return 'https://ethereal.email/message/fallback-logged-to-console';
     }
   } else {
@@ -140,6 +146,7 @@ export async function sendMail(to: string, subject: string, html: string): Promi
     console.log('Subject:', subject);
     console.log('Body:', html);
     console.log('=== End Email ===');
+    await logEmail(to, subject, html, 'No Transporter (Logged)', 'https://ethereal.email/message/fallback-logged-to-console');
     return 'https://ethereal.email/message/fallback-logged-to-console';
   }
 }

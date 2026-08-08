@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { initDatabase, db, getAllScheduleEntries } from "./server/db";
+import { initDatabase, db, getAllScheduleEntries, getEmailLogs } from "./server/db";
 import coursesRouter from "./server/routes/courses";
 import roomsRouter from "./server/routes/rooms";
 import studentsRouter from "./server/routes/students";
@@ -320,6 +320,16 @@ Ensure the returned object is valid JSON. Return ONLY the raw JSON block without
     } catch (err: any) {
       console.error("Gemini Auto-Fix Error:", err);
       res.status(500).json({ error: err.message || "Failed to generate AI auto-fix solutions" });
+    }
+  });
+
+  // API endpoint to retrieve email logs
+  app.get("/api/emails/logs", async (req, res, next) => {
+    try {
+      const logs = await getEmailLogs();
+      res.json(logs);
+    } catch (err) {
+      next(err);
     }
   });
 

@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Course, Room, Student, Invigilator, ScheduleEntry } from "../types";
 import { evaluateSchedule, getConflictReport, getTimeslotExact } from "../utils/solver";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Cell } from "recharts";
-import { Download, FileSpreadsheet, ShieldAlert, CheckSquare, Sparkles, Building2, UserCheck, Accessibility } from "lucide-react";
+import { Download, FileSpreadsheet, ShieldAlert, CheckSquare, Sparkles, Building2, UserCheck, Accessibility, Mail, RefreshCw } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fetchEmailLogs } from "../api/client";
 
 interface ReportsTabProps {
   courses: Course[];
@@ -22,7 +23,27 @@ interface ReportsTabProps {
 }
 
 export default function ReportsTab({ courses, rooms, students, invigilators, entries, collegeName, examStartDate = "2026-06-15" }: ReportsTabProps) {
-  const [activeReportSubTab, setActiveReportSubTab] = useState<"utilization" | "clashes" | "workload" | "accommodations" | "cheating">("utilization");
+  const [activeReportSubTab, setActiveReportSubTab] = useState<"utilization" | "clashes" | "workload" | "accommodations" | "cheating" | "emails">("utilization");
+  const [emailLogs, setEmailLogs] = useState<any[]>([]);
+  const [loadingEmails, setLoadingEmails] = useState(false);
+
+  const loadEmails = async () => {
+    setLoadingEmails(true);
+    try {
+      const logs = await fetchEmailLogs();
+      setEmailLogs(logs);
+    } catch (err) {
+      console.error("Failed to load email logs", err);
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeReportSubTab === "emails") {
+      loadEmails();
+    }
+  }, [activeReportSubTab]);
 
   const metrics = evaluateSchedule(entries, courses, students, rooms, invigilators);
   const reportsList = getConflictReport(entries, courses, students, rooms, invigilators);
@@ -491,6 +512,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
               { id: "clashes", label: "⚠️ Student & Proctor Clashes", icon: ShieldAlert },
               { id: "workload", label: "👤 Proctor Workloads", icon: UserCheck },
               { id: "accommodations", label: "♿ Special Accommodations", icon: Accessibility },
+              { id: "emails", label: "✉️ Email Audit Logs", icon: Mail },
             ].map((subTab) => {
               const Icon = subTab.icon;
               return (
@@ -729,6 +751,88 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
                       <tr>
                         <td colSpan={4} className="text-center py-12 text-slate-500 italic">
                           No special candidates accommodation needs in student files.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 5. EMAIL HISTORY LOG / DISPATCH TRAIL */}
+          {activeReportSubTab === "emails" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white">Email Dispatch History & Audit Trail (FR-10 System logs)</h3>
+                  <p className="text-xs text-slate-400">
+                    Live log registers of student exam allocations and proctoring schedules dispatched via the mailer.
+                  </p>
+                </div>
+                <button
+                  onClick={loadEmails}
+                  disabled={loadingEmails}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingEmails ? "animate-spin" : ""}`} />
+                  Refresh logs
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-800/80 bg-[#0A0C10]/20">
+                <table className="w-full text-left border-collapse text-xs font-normal">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-[#0A0C10]/40 text-slate-400 font-semibold">
+                      <th className="px-4 py-3">Timestamp</th>
+                      <th className="px-4 py-3">Recipient Address</th>
+                      <th className="px-4 py-3">Subject Line</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {emailLogs.map((log) => (
+                      <tr key={log.id} className="border-b border-slate-850 hover:bg-slate-900/10">
+                        <td className="px-4 py-3.5 text-slate-400 font-mono">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3.5 font-semibold text-slate-200">
+                          {log.recipient}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-300">
+                          {log.subject}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            log.status.toLowerCase().includes('failed')
+                              ? "bg-rose-950/35 text-rose-455 text-rose-400 border border-rose-900/40"
+                              : log.status.toLowerCase().includes('simulated')
+                              ? "bg-blue-955/35 text-blue-400 border border-blue-900/40"
+                              : "bg-emerald-950/35 text-emerald-400 border border-emerald-900/30"
+                          }`}>
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          {log.previewUrl && (
+                            <a
+                              href={log.previewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 bg-indigo-600/10 hover:bg-indigo-600/25 border border-indigo-500/20 hover:border-indigo-500/40 text-indigo-400 hover:text-indigo-300 font-bold rounded-lg transition text-[10px] select-none"
+                            >
+                              View Preview ↗
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {emailLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-slate-500 italic">
+                          {loadingEmails ? "Loading email records..." : "No email logs found in database."}
                         </td>
                       </tr>
                     )}
