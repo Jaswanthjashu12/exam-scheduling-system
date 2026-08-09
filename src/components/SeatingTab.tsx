@@ -1972,8 +1972,32 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
               })}
 
               {enrolledStudents.length === 0 && (
-                <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl">
+                <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl space-y-4">
                   <p className="text-xs text-slate-500 italic">No students allocated in this Room + Timeslot block</p>
+                  {selectedEntries.length > 0 && (
+                    <button
+                      onClick={() => {
+                        // Delete all entries for this room in the current timeslot
+                        const updatedEntries = entries.filter(
+                          (e) => !(e.timeslotId === selectedSlotId && e.roomId === currentRoomId)
+                        );
+                        setEntries(updatedEntries);
+                        
+                        // Also clear any overflow assignments associated with it
+                        const updatedOverflows = overflowAssignments.filter(
+                          (a) => !(a.slotId === selectedSlotId && (a.toRoomId === currentRoomId || a.fromRoomId === currentRoomId))
+                        );
+                        setOverflowAssignments(updatedOverflows);
+                        localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updatedOverflows));
+
+                        alert("🗑️ Removed empty room from this timeslot.");
+                        setSelectedRoomId(""); // Re-detect room
+                      }}
+                      className="px-4 py-2 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-900/40 text-rose-300 hover:text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                    >
+                      Remove Empty Room from Timeslot
+                    </button>
+                  )}
                 </div>
               )}
             </div>
