@@ -301,7 +301,7 @@ Your task is to propose the smallest set of valid changes required to resolve th
 ### SCHEDULING RESOURCES & CONSTRAINTS
 Exams (entries): ${JSON.stringify(constraints.exams)}
 Rooms: ${JSON.stringify(constraints.rooms)}
-Students: ${JSON.stringify(constraints.students)}
+Accommodated Students: ${JSON.stringify(constraints.accommodatedStudents)}
 Proctors: ${JSON.stringify(constraints.proctors)}
 
 ### DETECTED CONFLICTS TO RESOLVE

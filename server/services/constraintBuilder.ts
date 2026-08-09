@@ -27,11 +27,8 @@ export interface ExamConstraints {
     building: string;
     accessible: boolean;
   }[];
-  students: {
+  accommodatedStudents: {
     id: string;
-    name: string;
-    branch: string;
-    year: number;
     accommodations: string[];
     courses: string[];
   }[];
@@ -91,14 +88,13 @@ export async function buildConstraints(): Promise<ExamConstraints> {
     accessible: !!r.accessible,
   }));
 
-  const studentsList = students.map(s => ({
-    id: s.id,
-    name: s.name,
-    branch: s.branch || "",
-    year: s.year || 1,
-    accommodations: s.accommodations || [],
-    courses: s.courses || [],
-  }));
+  const accommodatedStudentsList = students
+    .filter(s => s.accommodations && s.accommodations.length > 0)
+    .map(s => ({
+      id: s.id,
+      accommodations: s.accommodations,
+      courses: s.courses
+    }));
 
   const proctorsList = invigilators.map(i => ({
     id: i.id,
@@ -113,7 +109,7 @@ export async function buildConstraints(): Promise<ExamConstraints> {
   return {
     exams,
     rooms: roomsList,
-    students: studentsList,
+    accommodatedStudents: accommodatedStudentsList,
     proctors: proctorsList,
     conflicts,
   };
