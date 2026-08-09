@@ -329,7 +329,35 @@ Rules:
         model: "gemini-3.5-flash",
         contents: prompt,
         config: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              modifications: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    entryId: { type: "STRING" },
+                    timeslotId: { type: "STRING", nullable: true },
+                    roomId: { type: "STRING", nullable: true },
+                    invigilatorId: { type: "STRING", nullable: true },
+                    reason: { type: "STRING" }
+                  },
+                  required: ["entryId", "reason"]
+                }
+              },
+              resolvedConflicts: {
+                type: "ARRAY",
+                items: { type: "STRING" }
+              },
+              remainingConflicts: {
+                type: "ARRAY",
+                items: { type: "STRING" }
+              }
+            },
+            required: ["modifications", "resolvedConflicts", "remainingConflicts"]
+          }
         }
       });
 
@@ -344,7 +372,20 @@ Rules:
         cleanJson = cleanJson.substring(0, cleanJson.length - 3);
       }
 
-      const parsedData = JSON.parse(cleanJson.trim());
+      let parsedData;
+      try {
+        parsedData = JSON.parse(cleanJson.trim());
+      } catch (parseErr: any) {
+        console.error("Gemini output JSON parsing failed:", parseErr, "Raw output:", responseText);
+        return res.json({
+          success: false,
+          validated: false,
+          proposal: { modifications: [] },
+          errors: [`AI output parsing failed: ${parseErr.message || parseErr}. The model generated invalid JSON format. Please try again.`],
+          conflicts: constraints.conflicts,
+          remainingConflicts: constraints.conflicts
+        });
+      }
       const modifications = parsedData.modifications || [];
 
       // Validate proposal against actual current database rules
