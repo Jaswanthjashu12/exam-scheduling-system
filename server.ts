@@ -2,7 +2,9 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { initDatabase, db, getAllScheduleEntries, getEmailLogs } from "./server/db";
+import { initDatabase, db, getAllScheduleEntries, getEmailLogs, logEmail } from "./server/db";
+import { buildConstraints } from "./server/services/constraintBuilder";
+import { validateProposal } from "./server/services/aiValidator";
 import coursesRouter from "./server/routes/courses";
 import roomsRouter from "./server/routes/rooms";
 import studentsRouter from "./server/routes/students";
@@ -203,81 +205,90 @@ Generate a highly detailed, coherent, and fun themed dataset. Return ONLY the ra
     }
   });
 
-  // Gemini API route to automatically resolve schedule conflicts
-  app.post("/api/gemini/auto-fix", async (req, res) => {
+  // Stage 1: Generate AI proposal without modifying SQLite
+  app.post("/api/ai/auto-fix", async (req, res) => {
     try {
-      const { schedule, conflicts, courses, rooms, invigilators } = req.body;
-      
+      const constraints = await buildConstraints();
+
+      // If no conflicts detected, return early
+      if (!constraints.conflicts || constraints.conflicts.length === 0) {
+        return res.status(200).json({
+          success: true,
+          validated: true,
+          proposal: { modifications: [] },
+          errors: [],
+          conflicts: [],
+          remainingConflicts: [],
+          message: "No scheduling conflicts detected. Your timetable is already fully compliant!"
+        });
+      }
+
       let client: GoogleGenAI;
       try {
         client = getGeminiClient();
       } catch (keyErr: any) {
         // Fallback / Preview Mode: simulate resolving one conflict
         const mockModifications = [];
-        if (conflicts && conflicts.length > 0 && schedule && schedule.length > 0) {
-          const firstConflict = conflicts[0];
-          const entryToFix = schedule.find((e: any) => 
-            (e.courseId && firstConflict.message.includes(e.courseId)) || 
-            (e.timeslotId && firstConflict.message.includes(e.timeslotId)) ||
-            (e.invigilatorId && firstConflict.message.includes(e.invigilatorId))
-          );
-          if (entryToFix) {
-            // Find a different timeslot from the current one to show a shift
-            const otherSlot = entryToFix.timeslotId === "Day_1_Morning" ? "Day_1_Afternoon" : "Day_1_Morning";
-            mockModifications.push({
-              entryId: entryToFix.id,
-              timeslotId: otherSlot,
-              roomId: entryToFix.roomId,
-              invigilatorId: entryToFix.invigilatorId
-            });
-          }
+        const firstConflict = constraints.conflicts[0];
+        const entryToFix = constraints.exams.find(e => 
+          firstConflict.message.includes(e.courseId) || 
+          firstConflict.message.includes(e.timeslotId) ||
+          (e.invigilatorId && firstConflict.message.includes(e.invigilatorId))
+        );
+        if (entryToFix) {
+          const otherSlot = entryToFix.timeslotId === "Day-1-Morning" ? "Day-1-Afternoon" : "Day-1-Morning";
+          mockModifications.push({
+            entryId: entryToFix.id,
+            timeslotId: otherSlot,
+            roomId: entryToFix.roomId,
+            invigilatorId: entryToFix.invigilatorId,
+            reason: `Shifted to resolve clash: ${firstConflict.category}`
+          });
         }
 
-        if (mockModifications.length > 0) {
-          const updateStmt = db.prepare('UPDATE schedule_entries SET timeslot_id = COALESCE(?, timeslot_id), room_id = COALESCE(?, room_id), invigilator_id = COALESCE(?, invigilator_id) WHERE id = ?');
-          db.transaction(() => {
-            for (const mod of mockModifications) {
-              updateStmt.run(mod.timeslotId, mod.roomId, mod.invigilatorId, mod.entryId);
-            }
-          })();
-        }
-
-        const updatedEntries = await getAllScheduleEntries();
+        const val = await validateProposal(mockModifications);
         return res.status(200).json({
-          isFallback: true,
-          modifications: mockModifications,
-          entries: updatedEntries,
-          message: "Your Gemini API key is not configured. Running in Preview Mode with simulated resolution."
+          success: true,
+          validated: val.valid,
+          proposal: { modifications: mockModifications },
+          errors: val.errors,
+          conflicts: constraints.conflicts,
+          remainingConflicts: val.newConflicts,
+          message: "Your Gemini API key is not configured. Running in Fallback Preview Mode with simulated resolution."
         });
       }
 
       const prompt = `
-You are an expert academic scheduling optimization engine. 
-Analyze the current schedule, the list of conflicts, and the available courses, rooms, and invigilators.
-Suggest schedule modifications to resolve as many conflicts as possible.
+You are an examination scheduling constraint solver.
+You are given the current scheduling resources and a list of detected conflicts.
+Your task is to propose the smallest set of valid changes required to resolve the conflicts.
 
 ---
-### SCHEDULING RESOURCES
-Courses: ${JSON.stringify(courses)}
-Rooms: ${JSON.stringify(rooms)}
-Invigilators: ${JSON.stringify(invigilators)}
+### SCHEDULING RESOURCES & CONSTRAINTS
+Exams (entries): ${JSON.stringify(constraints.exams)}
+Rooms: ${JSON.stringify(constraints.rooms)}
+Students: ${JSON.stringify(constraints.students)}
+Proctors: ${JSON.stringify(constraints.proctors)}
 
-### CURRENT CONFLICTS
-${JSON.stringify(conflicts)}
-
-### CURRENT SCHEDULE
-${JSON.stringify(schedule)}
+### DETECTED CONFLICTS TO RESOLVE
+${JSON.stringify(constraints.conflicts)}
 ---
 
-For each conflict, find alternative timeslots, rooms, or invigilators that are available and resolve the conflict without introducing new ones.
-Provide the output EXACTLY as a JSON object containing a "modifications" key, which is an array of objects.
-Each object in the "modifications" array must contain:
-- "entryId": The ID of the schedule entry to modify (must match one of the current schedule entry IDs).
-- "timeslotId": The new timeslot ID (e.g., "Day_1_Afternoon", "Day_2_Morning", etc.) OR null to keep current.
-- "roomId": The new room ID (e.g., "R-101", etc.) OR null to keep current.
-- "invigilatorId": The new invigilator ID (e.g., "INV-01", etc.) OR null to keep current.
+Propose modifications to timeslotId, roomId, or invigilatorId for specific entries.
+You MUST return ONLY a structured JSON object containing:
+- "modifications": An array of proposed modifications. Each object in this array must contain:
+  - "entryId": The ID of the schedule entry to modify (must match one of the current entry IDs).
+  - "timeslotId": The proposed new timeslot ID OR keep it same.
+  - "roomId": The proposed new room ID OR keep it same.
+  - "invigilatorId": The proposed new invigilator ID (or comma separated list) OR keep it same.
+  - "reason": A brief explanation of why this modification resolves the conflict.
+- "resolvedConflicts": Array of conflict IDs/names resolved.
+- "remainingConflicts": Array of conflict IDs/names that could not be resolved.
 
-Ensure the returned object is valid JSON. Return ONLY the raw JSON block without markdown formatting or backticks.
+Rules:
+- Suggest only valid existing IDs.
+- Follow all room capacity and proctor availability constraints.
+- If a conflict cannot be resolved, leave it in remainingConflicts.
 `;
 
       const response = await client.models.generateContent({
@@ -302,24 +313,92 @@ Ensure the returned object is valid JSON. Return ONLY the raw JSON block without
       const parsedData = JSON.parse(cleanJson.trim());
       const modifications = parsedData.modifications || [];
 
-      if (modifications.length > 0) {
-        const updateStmt = db.prepare('UPDATE schedule_entries SET timeslot_id = COALESCE(?, timeslot_id), room_id = COALESCE(?, room_id), invigilator_id = COALESCE(?, invigilator_id) WHERE id = ?');
+      // Validate proposal against actual current database rules
+      const val = await validateProposal(modifications);
+
+      res.json({
+        success: val.valid,
+        validated: true,
+        proposal: { modifications },
+        errors: val.errors,
+        conflicts: constraints.conflicts,
+        remainingConflicts: val.newConflicts
+      });
+    } catch (err: any) {
+      console.error("Gemini Auto-Fix Proposal Error:", err);
+      res.status(500).json({ error: err.message || "Failed to generate AI auto-fix solutions" });
+    }
+  });
+
+  // Keep old endpoint mapping as a proxy to prevent any client-side breaks
+  app.post("/api/gemini/auto-fix", async (req, res, next) => {
+    // Redirect to the new proposal endpoint, but apply immediately for old client compatibility if needed
+    // Actually, we'll let it call the auto-fix proposal directly
+    req.url = "/api/ai/auto-fix";
+    next();
+  });
+
+  // Stage 2: Apply the proposal inside a transaction
+  app.post("/api/ai/apply-fix", async (req, res) => {
+    try {
+      const { modifications } = req.body;
+      if (!modifications || !Array.isArray(modifications)) {
+        return res.status(400).json({ error: "Missing or invalid modifications array." });
+      }
+
+      // Re-read current database state and re-validate changes to detect stale checks
+      const val = await validateProposal(modifications);
+      if (!val.valid) {
+        return res.status(422).json({
+          success: false,
+          error: "Validation failed: Stale or invalid proposal.",
+          errors: val.errors
+        });
+      }
+
+      // Perform updates inside a strict SQLite transaction block
+      const updateStmt = db.prepare('UPDATE schedule_entries SET timeslot_id = COALESCE(?, timeslot_id), room_id = COALESCE(?, room_id), invigilator_id = COALESCE(?, invigilator_id) WHERE id = ?');
+      
+      try {
         db.transaction(() => {
           for (const mod of modifications) {
             updateStmt.run(mod.timeslotId, mod.roomId, mod.invigilatorId, mod.entryId);
           }
         })();
+      } catch (txErr: any) {
+        console.error("Apply AI Fix Transaction Failed:", txErr);
+        return res.status(500).json({
+          success: false,
+          error: `Database transaction failed: ${txErr.message}. All modifications rolled back.`
+        });
       }
+
+      // Audit Log into email_logs table
+      const auditSummary = `Applied ${modifications.length} modifications to resolve schedule conflicts.`;
+      const auditDetails = JSON.stringify({
+        modifications,
+        timestamp: new Date().toISOString(),
+        originalConflictsCount: val.originalConflictsCount,
+        remainingConflictsCount: val.newConflictsCount
+      }, null, 2);
+
+      await logEmail(
+        "SYSTEM",
+        "AI Auto-Fix Resolution Applied",
+        auditDetails,
+        "Applied",
+        "https://ethereal.email/message/ai-auto-fix-applied"
+      );
 
       const updatedEntries = await getAllScheduleEntries();
       res.json({
-        modifications,
-        entries: updatedEntries,
-        isFallback: false
+        success: true,
+        message: "AI Auto-Fix applied successfully and committed to database.",
+        entries: updatedEntries
       });
     } catch (err: any) {
-      console.error("Gemini Auto-Fix Error:", err);
-      res.status(500).json({ error: err.message || "Failed to generate AI auto-fix solutions" });
+      console.error("Apply AI Fix Error:", err);
+      res.status(500).json({ error: err.message || "Failed to commit AI Auto-Fix changes" });
     }
   });
 

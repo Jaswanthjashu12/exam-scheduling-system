@@ -396,19 +396,45 @@ export async function notifyExamAssignment(payload: {
   return handleResponse<{ message: string; sentCount: number; failedCount: number; url?: string }>(res);
 }
 
-export async function runAutoFix(payload: {
-  schedule: ScheduleEntry[];
+export async function getAutoFixProposal(): Promise<{
+  success: boolean;
+  validated: boolean;
+  proposal: { modifications: any[] };
+  errors: string[];
   conflicts: any[];
-  courses: Course[];
-  rooms: Room[];
-  invigilators: Invigilator[];
-}): Promise<{ modifications: any[]; entries: ScheduleEntry[]; isFallback: boolean; message?: string }> {
-  const res = await fetch(`${API_BASE}/api/gemini/auto-fix`, {
+  remainingConflicts: any[];
+  message?: string;
+}> {
+  const res = await fetch(`${API_BASE}/api/ai/auto-fix`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return handleResponse<{
+    success: boolean;
+    validated: boolean;
+    proposal: { modifications: any[] };
+    errors: string[];
+    conflicts: any[];
+    remainingConflicts: any[];
+    message?: string;
+  }>(res);
+}
+
+export async function applyAutoFixProposal(modifications: any[]): Promise<{
+  success: boolean;
+  message: string;
+  entries: ScheduleEntry[];
+}> {
+  const res = await fetch(`${API_BASE}/api/ai/apply-fix`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({ modifications })
   });
-  return handleResponse<{ modifications: any[]; entries: ScheduleEntry[]; isFallback: boolean; message?: string }>(res);
+  return handleResponse<{
+    success: boolean;
+    message: string;
+    entries: ScheduleEntry[];
+  }>(res);
 }
 
 export async function fetchEmailLogs(): Promise<any[]> {
