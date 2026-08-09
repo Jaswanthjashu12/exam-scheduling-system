@@ -1002,27 +1002,65 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
     setExportingImage(true);
 
-    // 1. Get all style tags in the head
-    const styleElements = Array.from(document.querySelectorAll("style"));
-    const originalContents = styleElements.map(el => el.innerHTML);
+    // 1. Scan and find all active style sheets and style tags in the document
+    const disabledSheets: { sheet: CSSStyleSheet; node: HTMLElement }[] = [];
+    const tempStyleNodes: HTMLStyleElement[] = [];
+
+    // Helper regex to clean up oklch and oklab functions
+    const cleanColors = (text: string): string => {
+      return text.replace(/okl(ch|ab)\(([^)]*?(\([^)]*?\)[^)]*?)*?)\)/g, (match, type, content) => {
+        const trimmed = content.trim();
+        const firstPart = trimmed.split(/[\s,]+/)[0];
+        const l = parseFloat(firstPart);
+        if (!isNaN(l)) {
+          if (l > 0.8) return "rgb(255, 255, 255)";   // light text/borders
+          if (l > 0.6) return "rgb(226, 232, 240)";   // slate-200
+          if (l > 0.4) return "rgb(100, 116, 139)";   // slate-500
+          return "rgb(15, 23, 42)";                   // slate-900 / dark bg
+        }
+        return "rgb(100, 116, 139)";                  // Fallback for complex relative colors
+      });
+    };
 
     try {
-      // 2. Replace oklch(...) and oklab(...) colors with standard RGB colors to prevent html2canvas parsing crash
-      styleElements.forEach(el => {
-        if (el.innerHTML.includes("oklch") || el.innerHTML.includes("oklab")) {
-          const newContent = el.innerHTML.replace(/okl(ch|ab)\(([^)]*?(\([^)]*?\)[^)]*?)*?)\)/g, (match, type, content) => {
-            const trimmed = content.trim();
-            const firstPart = trimmed.split(/[\s,]+/)[0];
-            const l = parseFloat(firstPart);
-            if (!isNaN(l)) {
-              if (l > 0.8) return "rgb(255, 255, 255)";   // light text/borders
-              if (l > 0.6) return "rgb(226, 232, 240)";   // slate-200
-              if (l > 0.4) return "rgb(100, 116, 139)";   // slate-500
-              return "rgb(15, 23, 42)";                   // slate-900 / dark bg
+      // 2. Loop through all document stylesheets to detect and neutralize oklch/oklab
+      Array.from(document.styleSheets).forEach(sheet => {
+        if (sheet.disabled) return;
+        const node = sheet.ownerNode as HTMLElement;
+        if (node && (node.nodeName === "LINK" || node.nodeName === "STYLE")) {
+          try {
+            let hasOkl = false;
+            let cssText = "";
+            
+            // Check ownerNode text first for quick check
+            if (node.nodeName === "STYLE") {
+              cssText = node.innerHTML;
+              hasOkl = cssText.includes("oklch") || cssText.includes("oklab");
             }
-            return "rgb(100, 116, 139)";                  // Fallback for complex relative colors
-          });
-          el.innerHTML = newContent;
+
+            // Fallback to rules parsing
+            const rules = sheet.cssRules || sheet.rules;
+            if (!hasOkl && rules) {
+              cssText = Array.from(rules).map(r => r.cssText).join("\n");
+              hasOkl = cssText.includes("oklch") || cssText.includes("oklab");
+            }
+
+            if (hasOkl) {
+              // Disable original stylesheet
+              sheet.disabled = true;
+              disabledSheets.push({ sheet, node });
+
+              // Create and inject a cleaned temporary stylesheet
+              const cleanedText = cleanColors(cssText);
+              const tempStyle = document.createElement("style");
+              tempStyle.innerHTML = cleanedText;
+              document.head.appendChild(tempStyle);
+              tempStyleNodes.push(tempStyle);
+            }
+          } catch (e) {
+            // Ignore CORS security issues for external cross-origin link tags
+            console.warn("[html2canvas preprocessor] Skipping cross-origin stylesheet check:", e);
+          }
         }
       });
 
@@ -1043,9 +1081,14 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       console.error("Failed to capture seating layout image:", err);
       alert(`Failed to export seating layout as image: ${err.message || err}`);
     } finally {
-      // 3. Restore original styles so the web app UI doesn't lose its vibrant gradients
-      styleElements.forEach((el, index) => {
-        el.innerHTML = originalContents[index];
+      // 3. Restore all original stylesheets and remove temporary ones
+      tempStyleNodes.forEach(node => {
+        if (node.parentNode) {
+          node.parentNode.removeChild(node);
+        }
+      });
+      disabledSheets.forEach(({ sheet }) => {
+        sheet.disabled = false;
       });
       setExportingImage(false);
     }
