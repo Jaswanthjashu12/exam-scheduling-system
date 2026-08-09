@@ -1002,75 +1002,66 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
     setExportingImage(true);
 
-    // 1. Scan and find all active style sheets and style tags in the document
-    const disabledSheets: { sheet: CSSStyleSheet; node: HTMLElement }[] = [];
-    const tempStyleNodes: HTMLStyleElement[] = [];
+    // 1. Create a clone of the target element to do off-screen rendering
+    const clone = element.cloneNode(true) as HTMLElement;
+    
+    // Inline the resolved computed styles of all elements onto the cloned node tree
+    const originalElements = Array.from(element.querySelectorAll("*")).concat(element);
+    const clonedElements = Array.from(clone.querySelectorAll("*")).concat(clone);
 
-    // Helper regex to clean up oklch and oklab functions
-    const cleanColors = (text: string): string => {
-      return text.replace(/okl(ch|ab)\(([^)]*?(\([^)]*?\)[^)]*?)*?)\)/g, (match, type, content) => {
-        const trimmed = content.trim();
-        const firstPart = trimmed.split(/[\s,]+/)[0];
-        const l = parseFloat(firstPart);
-        if (!isNaN(l)) {
-          if (l > 0.8) return "rgb(255, 255, 255)";   // light text/borders
-          if (l > 0.6) return "rgb(226, 232, 240)";   // slate-200
-          if (l > 0.4) return "rgb(100, 116, 139)";   // slate-500
-          return "rgb(15, 23, 42)";                   // slate-900 / dark bg
+    clonedElements.forEach((clonedEl, i) => {
+      const originalEl = originalElements[i];
+      if (!originalEl) return;
+      
+      const computed = window.getComputedStyle(originalEl);
+      let cssText = "";
+      
+      // Copy key visual, layout, and color declarations (which the browser computes to hex/rgb)
+      const stylesToCopy = [
+        "background-color", "color", "border-color", "border-style", "border-width",
+        "border-radius", "padding", "margin", "font-family", "font-size", "font-weight",
+        "display", "flex-direction", "align-items", "justify-content", "grid-template-columns",
+        "grid-template-rows", "gap", "position", "top", "right", "bottom", "left",
+        "transform", "width", "height", "box-shadow", "opacity", "line-height", "text-align"
+      ];
+      
+      stylesToCopy.forEach(prop => {
+        const val = computed.getPropertyValue(prop);
+        if (val) {
+          // Double safeguard to strip oklch/oklab in computed variables if any browser returns them raw
+          let cleanedVal = val;
+          if (val.includes("oklch") || val.includes("oklab")) {
+            cleanedVal = val.replace(/okl(ch|ab)\(([^)]*?(\([^)]*?\)[^)]*?)*?)\)/g, "rgb(100, 116, 139)");
+          }
+          cssText += `${prop}: ${cleanedVal}; `;
         }
-        return "rgb(100, 116, 139)";                  // Fallback for complex relative colors
       });
-    };
+      
+      (clonedEl as HTMLElement).style.cssText = cssText;
+    });
+
+    // 2. Temporarily mount the clone to the document body but position it far off-screen
+    clone.style.position = "absolute";
+    clone.style.top = "-9999px";
+    clone.style.left = "-9999px";
+    clone.style.width = element.offsetWidth + "px";
+    clone.style.height = element.offsetHeight + "px";
+    document.body.appendChild(clone);
+
+    // 3. Temporarily disable all document stylesheets so html2canvas doesn't parse oklch/oklab rules
+    const sheets = Array.from(document.styleSheets);
+    const originalSheetStates = sheets.map(s => s.disabled);
+    sheets.forEach(s => { s.disabled = true; });
 
     try {
-      // 2. Loop through all document stylesheets to detect and neutralize oklch/oklab
-      Array.from(document.styleSheets).forEach(sheet => {
-        if (sheet.disabled) return;
-        const node = sheet.ownerNode as HTMLElement;
-        if (node && (node.nodeName === "LINK" || node.nodeName === "STYLE")) {
-          try {
-            let hasOkl = false;
-            let cssText = "";
-            
-            // Check ownerNode text first for quick check
-            if (node.nodeName === "STYLE") {
-              cssText = node.innerHTML;
-              hasOkl = cssText.includes("oklch") || cssText.includes("oklab");
-            }
-
-            // Fallback to rules parsing
-            const rules = sheet.cssRules || sheet.rules;
-            if (!hasOkl && rules) {
-              cssText = Array.from(rules).map(r => r.cssText).join("\n");
-              hasOkl = cssText.includes("oklch") || cssText.includes("oklab");
-            }
-
-            if (hasOkl) {
-              // Disable original stylesheet
-              sheet.disabled = true;
-              disabledSheets.push({ sheet, node });
-
-              // Create and inject a cleaned temporary stylesheet
-              const cleanedText = cleanColors(cssText);
-              const tempStyle = document.createElement("style");
-              tempStyle.innerHTML = cleanedText;
-              document.head.appendChild(tempStyle);
-              tempStyleNodes.push(tempStyle);
-            }
-          } catch (e) {
-            // Ignore CORS security issues for external cross-origin link tags
-            console.warn("[html2canvas preprocessor] Skipping cross-origin stylesheet check:", e);
-          }
-        }
-      });
-
-      const canvas = await html2canvas(element, {
+      const canvas = await html2canvas(clone, {
         backgroundColor: "#12151C",
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: true
       });
+      
       const link = document.createElement("a");
       link.download = `seating_plan_${roomObj?.name || "classroom"}.png`;
       link.href = canvas.toDataURL("image/png");
@@ -1081,15 +1072,13 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       console.error("Failed to capture seating layout image:", err);
       alert(`Failed to export seating layout as image: ${err.message || err}`);
     } finally {
-      // 3. Restore all original stylesheets and remove temporary ones
-      tempStyleNodes.forEach(node => {
-        if (node.parentNode) {
-          node.parentNode.removeChild(node);
-        }
+      // 4. Restore all original stylesheets and clean up the off-screen clone
+      sheets.forEach((s, i) => {
+        s.disabled = originalSheetStates[i];
       });
-      disabledSheets.forEach(({ sheet }) => {
-        sheet.disabled = false;
-      });
+      if (clone.parentNode) {
+        clone.parentNode.removeChild(clone);
+      }
       setExportingImage(false);
     }
   };
