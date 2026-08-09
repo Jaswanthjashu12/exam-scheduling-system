@@ -230,19 +230,53 @@ Generate a highly detailed, coherent, and fun themed dataset. Return ONLY the ra
         // Fallback / Preview Mode: simulate resolving one conflict
         const mockModifications = [];
         const firstConflict = constraints.conflicts[0];
-        const entryToFix = constraints.exams.find(e => 
-          firstConflict.message.includes(e.courseId) || 
-          firstConflict.message.includes(e.timeslotId) ||
-          (e.invigilatorId && firstConflict.message.includes(e.invigilatorId))
-        );
+        const parts = firstConflict.id.split("_");
+        
+        let entryToFix = null;
+
+        // Try to match by conflict ID parts
+        if (firstConflict.id.startsWith("room_") && parts.length >= 3) {
+          const timeslotId = parts[1];
+          const roomId = parts[2];
+          entryToFix = constraints.exams.find(e => e.timeslotId === timeslotId && e.roomId === roomId);
+        } else if (firstConflict.id.startsWith("stu_") && parts.length >= 4) {
+          const timeslotId = parts[2];
+          const courseId = parts[3];
+          entryToFix = constraints.exams.find(e => e.timeslotId === timeslotId && e.courseId === courseId);
+        } else if (firstConflict.id.startsWith("invig_") && parts.length >= 3) {
+          const timeslotId = parts[1];
+          const invigId = parts[2];
+          entryToFix = constraints.exams.find(e => e.timeslotId === timeslotId && e.invigilatorId.includes(invigId));
+        }
+
+        // Fallback: search by message contents
+        if (!entryToFix) {
+          entryToFix = constraints.exams.find(e => 
+            firstConflict.message.includes(e.courseId) || 
+            (e.timeslotId && firstConflict.message.includes(e.timeslotId)) ||
+            (e.invigilatorId && firstConflict.message.includes(e.invigilatorId))
+          );
+        }
+
+        // If still not found, pick the first exam entry
+        if (!entryToFix) {
+          entryToFix = constraints.exams.find(e => e.timeslotId);
+        }
+
         if (entryToFix) {
-          const otherSlot = entryToFix.timeslotId === "Day-1-Morning" ? "Day-1-Afternoon" : "Day-1-Morning";
+          const otherSlot = entryToFix.timeslotId.endsWith("Morning") 
+            ? entryToFix.timeslotId.replace("Morning", "Afternoon") 
+            : entryToFix.timeslotId.endsWith("Afternoon")
+              ? entryToFix.timeslotId.replace("Afternoon", "Evening")
+              : entryToFix.timeslotId.replace("Evening", "Morning");
+          const finalSlot = otherSlot || "Day-1-Morning";
+
           mockModifications.push({
             entryId: entryToFix.id,
-            timeslotId: otherSlot,
+            timeslotId: finalSlot,
             roomId: entryToFix.roomId,
             invigilatorId: entryToFix.invigilatorId,
-            reason: `Shifted to resolve clash: ${firstConflict.category}`
+            reason: `Shifted timeslot from [${entryToFix.timeslotId}] to [${finalSlot}] to resolve clash: ${firstConflict.category}`
           });
         }
 
