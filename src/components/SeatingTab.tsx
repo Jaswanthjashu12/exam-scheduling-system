@@ -382,14 +382,15 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
         if (activeBranches.length > 0) {
           if (interleaveDepts && activeBranches.length > 1) {
-            // Interleave departments: Column C goes to branch activeBranches[C % activeBranches.length]
+            // Interleave departments: Column C goes to branch activeBranches[(C/2) % activeBranches.length], respecting the gap!
             if (fillDirection === "column-wise") {
               for (let c = 0; c < numCols; c++) {
+                if (c % 2 !== 0) continue; // Respect the gap!
                 const height = colHeights[c] ?? numRows;
                 for (let r = 0; r < height; r++) {
                   const idx = getSeatIdx(r, c);
                   if (idx === -1) continue;
-                  const branchForCol = activeBranches[c % activeBranches.length];
+                  const branchForCol = activeBranches[Math.floor(c / 2) % activeBranches.length];
                   const list = branchGroups[branchForCol];
                   if (list && list.length > 0) {
                     defaultArr[idx] = list.shift()!.id;
@@ -399,9 +400,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             } else {
               for (let r = 0; r < maxRows; r++) {
                 for (let c = 0; c < numCols; c++) {
+                  if (c % 2 !== 0) continue; // Respect the gap!
                   const idx = getSeatIdx(r, c);
                   if (idx === -1) continue;
-                  const branchForCol = activeBranches[c % activeBranches.length];
+                  const branchForCol = activeBranches[Math.floor(c / 2) % activeBranches.length];
                   const list = branchGroups[branchForCol];
                   if (list && list.length > 0) {
                     defaultArr[idx] = list.shift()!.id;
