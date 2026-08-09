@@ -44,6 +44,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     const saved = localStorage.getItem("exam_scheduler_allow_diff_branch_sec_adjacent");
     return saved !== null ? saved === "true" : true;
   });
+  const [allowSameBranchSecAdjacent, setAllowSameBranchSecAdjacent] = useState<boolean>(() => {
+    const saved = localStorage.getItem("exam_scheduler_allow_same_branch_sec_adjacent");
+    return saved !== null ? saved === "true" : true;
+  });
   // Overflow assignment state — tracks which overflow students go to which room
   interface OverflowAssignment {
     slotId: string;
@@ -721,6 +725,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                   continue;
                 }
               }
+              if (allowSameBranchSecAdjacent) {
+                continue;
+              }
               seat.isRisk = true;
               break;
             }
@@ -1381,6 +1388,25 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                       className="accent-indigo-500 rounded cursor-pointer"
                     />
                     <span>Allow Diff Branch/Sec</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer select-none" title="Allows same-course students from same branch/section to sit horizontally adjacent without warning.">
+                    <input
+                      type="checkbox"
+                      checked={allowSameBranchSecAdjacent}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setAllowSameBranchSecAdjacent(val);
+                        localStorage.setItem("exam_scheduler_allow_same_branch_sec_adjacent", String(val));
+                        // Clear custom overrides to trigger auto-sort update immediately
+                        const updated = { ...customSeating };
+                        delete updated[seatKey];
+                        setCustomSeating(updated);
+                        localStorage.setItem("exam_scheduler_custom_seating", JSON.stringify(updated));
+                        setSelectedSeatIndex(null);
+                      }}
+                      className="accent-indigo-500 rounded cursor-pointer"
+                    />
+                    <span>Allow Same Branch/Sec</span>
                   </label>
                 </div>
               </div>
