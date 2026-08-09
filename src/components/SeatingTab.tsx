@@ -135,7 +135,21 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       }
     }
 
-    if (courseEntries.length === 1) {
+    const courseOverflow = overflowAssignments.find(
+      (a) => a.slotId === selectedSlotId && 
+             courseEntries.some((e) => e.roomId === a.fromRoomId) && 
+             courseEntries.some((e) => e.roomId === a.toRoomId)
+    );
+
+    if (courseOverflow) {
+      courseStudents.forEach((s) => {
+        if (courseOverflow.studentIds.includes(s.id)) {
+          studentRoomAssignment[s.id] = courseOverflow.toRoomId;
+        } else {
+          studentRoomAssignment[s.id] = courseOverflow.fromRoomId;
+        }
+      });
+    } else if (courseEntries.length === 1) {
       courseStudents.forEach((s) => {
         studentRoomAssignment[s.id] = courseEntries[0].roomId;
       });
