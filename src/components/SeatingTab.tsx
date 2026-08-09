@@ -1010,23 +1010,18 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       // 2. Replace oklch(...) and oklab(...) colors with standard RGB colors to prevent html2canvas parsing crash
       styleElements.forEach(el => {
         if (el.innerHTML.includes("oklch") || el.innerHTML.includes("oklab")) {
-          const newContent = el.innerHTML
-            .replace(/oklch\(\s*([0-9.]+)[^)]+\)/g, (match, lightness) => {
-              const l = parseFloat(lightness);
-              if (isNaN(l)) return "rgb(255, 255, 255)";
+          const newContent = el.innerHTML.replace(/okl(ch|ab)\(([^)]*?(\([^)]*?\)[^)]*?)*?)\)/g, (match, type, content) => {
+            const trimmed = content.trim();
+            const firstPart = trimmed.split(/[\s,]+/)[0];
+            const l = parseFloat(firstPart);
+            if (!isNaN(l)) {
               if (l > 0.8) return "rgb(255, 255, 255)";   // light text/borders
               if (l > 0.6) return "rgb(226, 232, 240)";   // slate-200
               if (l > 0.4) return "rgb(100, 116, 139)";   // slate-500
               return "rgb(15, 23, 42)";                   // slate-900 / dark bg
-            })
-            .replace(/oklab\(\s*([0-9.]+)[^)]+\)/g, (match, lightness) => {
-              const l = parseFloat(lightness);
-              if (isNaN(l)) return "rgb(255, 255, 255)";
-              if (l > 0.8) return "rgb(255, 255, 255)";
-              if (l > 0.6) return "rgb(226, 232, 240)";
-              if (l > 0.4) return "rgb(100, 116, 139)";
-              return "rgb(15, 23, 42)";
-            });
+            }
+            return "rgb(100, 116, 139)";                  // Fallback for complex relative colors
+          });
           el.innerHTML = newContent;
         }
       });
