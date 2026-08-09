@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { Course, Room, Student, Invigilator, ScheduleEntry } from "../types";
 import { DEFAULT_TIMESLOTS, getTimeslotExact } from "../utils/solver";
-import { Users, Info, ShieldAlert, Check, HelpCircle, AlertTriangle, Move, RotateCcw, Printer, Mail, Loader2, ArrowRightCircle, LogIn, Download } from "lucide-react";
+import { Users, Info, ShieldAlert, Check, HelpCircle, AlertTriangle, Move, RotateCcw, Printer, Mail, Loader2, ArrowRightCircle, LogIn, Download, Zap } from "lucide-react";
 import * as api from "../api/client";
 import html2canvas from "html2canvas";
 
@@ -886,6 +886,152 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     setSelectedOverflowTargetRoom("");
   };
 
+  const handleAutoResolveSingleRoomOverflow = () => {
+    if (overflowStudents.length === 0) return;
+    
+    // Find available free rooms in this timeslot
+    const freeRooms = rooms.filter((r) => {
+      // Room is free if it has no entries in slotEntries
+      return !slotEntries.some(e => e.roomId === r.id);
+    }).sort((a, b) => b.capacity - a.capacity); // Pick largest rooms first
+
+    if (freeRooms.length === 0) {
+      alert("❌ No completely free rooms available in this timeslot to assign overflow!");
+      return;
+    }
+
+    const chosenRoom = freeRooms[0];
+    const targetRoomId = chosenRoom.id;
+    
+    const capacityToUse = Math.min(chosenRoom.capacity, overflowStudents.length);
+    const studentsToMove = overflowStudents.slice(0, capacityToUse);
+
+    const newAssignment: OverflowAssignment = {
+      slotId: selectedSlotId,
+      fromRoomId: currentRoomId,
+      toRoomId: targetRoomId,
+      studentIds: studentsToMove.map(s => s.id),
+    };
+
+    // Replace any existing assignment for this room+slot
+    const updated = [
+      ...overflowAssignments.filter(
+        (a) => !(a.slotId === selectedSlotId && a.fromRoomId === currentRoomId)
+      ),
+      newAssignment,
+    ];
+    setOverflowAssignments(updated);
+    localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
+
+    // Create schedule entry
+    const courseId = selectedEntries[0]?.courseId;
+    if (courseId) {
+      const exists = entries.some(
+        (e) => e.timeslotId === selectedSlotId && e.courseId === courseId && e.roomId === targetRoomId
+      );
+      if (!exists) {
+        const newEntry: ScheduleEntry = {
+          id: `man-auto-${Date.now()}`,
+          courseId,
+          timeslotId: selectedSlotId,
+          roomId: targetRoomId,
+          invigilatorId: "",
+        };
+        setEntries([...entries, newEntry]);
+      }
+    }
+
+    const targetRoomName = chosenRoom.name || targetRoomId;
+    alert(`⚡ Auto-Resolved! Moved ${studentsToMove.length} student(s) to "${targetRoomName}". Please assign a Proctor to it in the Scheduler Tab.`);
+    
+    // Auto-select the target room to show the seating arrangement
+    setSelectedRoomId(targetRoomId);
+  };
+
+  const handleAutoAllocateAllOverflows = () => {
+    // 1. Find all courses scheduled in this slot
+    const newEntriesToAdd: ScheduleEntry[] = [];
+    const newOverflowAssignments: OverflowAssignment[] = [];
+
+    // Track active occupancies
+    const roomOccupancy = new Map<string, number>();
+    rooms.forEach((r) => {
+      // Find currently scheduled occupancy
+      const scheduledInRoom = slotEntries.filter(e => e.roomId === r.id);
+      let occ = 0;
+      scheduledInRoom.forEach(e => {
+        const courseStus = students.filter(s => s.courses.some(c => c.trim().toUpperCase() === e.courseId.trim().toUpperCase())).length;
+        occ += courseStus;
+      });
+      roomOccupancy.set(r.id, occ);
+    });
+
+    const coursesInSlot = Array.from(new Set(slotEntries.map(e => e.courseId)));
+    
+    coursesInSlot.forEach((cid) => {
+      const courseEntries = slotEntries.filter(e => e.courseId === cid);
+      const courseStudents = students.filter(s => s.courses.some(c => c.trim().toUpperCase() === cid.trim().toUpperCase()));
+      
+      const totalCapacity = courseEntries.reduce((sum, ent) => {
+        const r = rooms.find(rm => rm.id === ent.roomId);
+        return sum + (r?.capacity || 30);
+      }, 0);
+
+      if (courseStudents.length > totalCapacity) {
+        let remainingOverflowCount = courseStudents.length - totalCapacity;
+        const overflowStudentIds = courseStudents.slice(-remainingOverflowCount).map(s => s.id);
+
+        while (remainingOverflowCount > 0) {
+          const freeRooms = rooms.filter((r) => {
+            const isScheduled = slotEntries.some(e => e.roomId === r.id) || newEntriesToAdd.some(e => e.roomId === r.id);
+            const occ = roomOccupancy.get(r.id) || 0;
+            return !isScheduled && occ < r.capacity;
+          }).sort((a, b) => b.capacity - a.capacity);
+
+          if (freeRooms.length === 0) break;
+
+          const chosenRoom = freeRooms[0];
+          const capacityToUse = Math.min(chosenRoom.capacity, remainingOverflowCount);
+          
+          const studentsToMove = overflowStudentIds.slice(
+            overflowStudentIds.length - remainingOverflowCount,
+            overflowStudentIds.length - remainingOverflowCount + capacityToUse
+          );
+
+          newEntriesToAdd.push({
+            id: `man-auto-${Date.now()}-${cid}-${chosenRoom.id}`,
+            courseId: cid,
+            timeslotId: selectedSlotId,
+            roomId: chosenRoom.id,
+            invigilatorId: "",
+          });
+
+          const primaryRoomId = courseEntries[0]?.roomId || "";
+          newOverflowAssignments.push({
+            slotId: selectedSlotId,
+            fromRoomId: primaryRoomId,
+            toRoomId: chosenRoom.id,
+            studentIds: studentsToMove,
+          });
+
+          roomOccupancy.set(chosenRoom.id, (roomOccupancy.get(chosenRoom.id) || 0) + capacityToUse);
+          remainingOverflowCount -= capacityToUse;
+        }
+      }
+    });
+
+    if (newEntriesToAdd.length > 0) {
+      setEntries([...entries, ...newEntriesToAdd]);
+      const updatedOverflows = [...overflowAssignments, ...newOverflowAssignments];
+      setOverflowAssignments(updatedOverflows);
+      localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updatedOverflows));
+
+      alert(`✅ Auto-Resolved Overflows: Successfully created ${newEntriesToAdd.length} overflow seating plan(s) in available rooms!`);
+    } else {
+      alert(`ℹ️ No overflows detected in this timeslot. All students are already accommodated!`);
+    }
+  };
+
   const handleClearOverflowAssignment = () => {
     const updated = overflowAssignments.filter(
       (a) => !(a.slotId === selectedSlotId && a.fromRoomId === currentRoomId)
@@ -1192,6 +1338,16 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                     <Mail className="w-3.5 h-3.5" />
                   )}
                   {sendingPlan ? "Sending..." : "Email Seating Plan"}
+                </button>
+              )}
+
+              {selectedSlotId && (
+                <button
+                  onClick={handleAutoAllocateAllOverflows}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)] text-white text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                  title="Auto-scan this timeslot and assign all overflow students to available free classrooms"
+                >
+                  <Zap className="w-3.5 h-3.5 animate-pulse" /> Auto-Resolve Overflows
                 </button>
               )}
             </div>
@@ -1742,6 +1898,14 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap"
                           >
                             Add Seating Plan
+                          </button>
+
+                          <button
+                            onClick={handleAutoResolveSingleRoomOverflow}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                            title="Auto-find the best free room and assign these overflow students immediately"
+                          >
+                            <Zap className="w-3.5 h-3.5" /> Auto-Resolve
                           </button>
                         </div>
                         
