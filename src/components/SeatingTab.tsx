@@ -823,8 +823,8 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     return occupancy < r.capacity;
   });
 
-  // Existing overflow assignment originating from this room+slot
-  const currentOverflowAssignment = overflowAssignments.find(
+  // Existing overflow assignments originating from this room+slot
+  const currentOverflowAssignments = overflowAssignments.filter(
     (a) => a.slotId === selectedSlotId && a.fromRoomId === currentRoomId
   );
 
@@ -1039,15 +1039,14 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   };
 
-  const handleClearOverflowAssignment = () => {
+  const handleClearOverflowAssignment = (targetRoomId: string) => {
     const updated = overflowAssignments.filter(
-      (a) => !(a.slotId === selectedSlotId && a.fromRoomId === currentRoomId)
+      (a) => !(a.slotId === selectedSlotId && a.fromRoomId === currentRoomId && a.toRoomId === targetRoomId)
     );
     setOverflowAssignments(updated);
     localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
 
     // Remove the schedule entry for this course, slot, and target room
-    const targetRoomId = currentOverflowAssignment?.toRoomId;
     if (targetRoomId) {
       const courseId = selectedEntries[0]?.courseId;
       if (courseId) {
@@ -1821,24 +1820,28 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
                 {/* Assignment controls */}
                 <div className="lg:w-80 flex flex-col justify-center gap-3">
-                  {currentOverflowAssignment ? (
-                    <div className="flex items-center justify-between gap-3 p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
-                      <div className="text-xs">
-                        <p className="font-bold text-emerald-300">✓ Overflow assigned</p>
-                        <p className="text-[10px] text-emerald-400 mt-1">
-                          {currentOverflowAssignment.studentIds.length} student{currentOverflowAssignment.studentIds.length !== 1 ? "s" : ""} →{" "}
-                          <span className="font-bold">{rooms.find((r) => r.id === currentOverflowAssignment.toRoomId)?.name || currentOverflowAssignment.toRoomId}</span>
-                        </p>
-                        <p className="text-[9px] text-emerald-500 mt-0.5">
-                          Switch to that room to see them listed as Overflow Arrivals.
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleClearOverflowAssignment}
-                        className="text-[10px] font-bold text-rose-400 hover:text-rose-300 border border-rose-900/40 bg-rose-950/30 hover:bg-rose-950/50 px-3 py-2 rounded-lg transition cursor-pointer shrink-0"
-                      >
-                        Clear
-                      </button>
+                  {currentOverflowAssignments.length > 0 ? (
+                    <div className="space-y-2.5 w-full">
+                      {currentOverflowAssignments.map((a) => (
+                        <div key={a.toRoomId} className="flex items-center justify-between gap-3 p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl shadow-sm">
+                          <div className="text-xs">
+                            <p className="font-bold text-emerald-300">✓ Overflow assigned</p>
+                            <p className="text-[10px] text-emerald-400 mt-1 font-semibold">
+                              {a.studentIds.length} student{a.studentIds.length !== 1 ? "s" : ""} →{" "}
+                              <span className="font-bold">{rooms.find((r) => r.id === a.toRoomId)?.name || a.toRoomId}</span>
+                            </p>
+                            <p className="text-[9px] text-emerald-500 mt-0.5">
+                              Switch to that room to see them listed as Overflow Arrivals.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleClearOverflowAssignment(a.toRoomId)}
+                            className="text-[10px] font-bold text-rose-400 hover:text-rose-300 border border-rose-900/40 bg-rose-950/30 hover:bg-rose-950/50 px-3 py-2 rounded-lg transition cursor-pointer shrink-0"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <>
