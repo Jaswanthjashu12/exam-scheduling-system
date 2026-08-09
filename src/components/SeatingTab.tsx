@@ -1053,43 +1053,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   };
 
-  // Automatically sync / clear overflow assignment if students fit now (due to layout / grid changes)
-  useEffect(() => {
-    if (!selectedSlotId || !currentRoomId) return;
 
-    const currentOverflowIds = overflowStudents.map((s) => s.id).sort();
-
-    setOverflowAssignments((prev) => {
-      const currentAssignment = prev.find(
-        (a) => a.slotId === selectedSlotId && a.fromRoomId === currentRoomId
-      );
-      if (!currentAssignment) return prev;
-
-      const savedIds = [...currentAssignment.studentIds].sort();
-      const isDifferent = 
-        currentOverflowIds.length !== savedIds.length ||
-        currentOverflowIds.some((id, idx) => id !== savedIds[idx]);
-
-      if (!isDifferent) return prev;
-
-      let updated;
-      if (currentOverflowIds.length === 0) {
-        updated = prev.filter(
-          (a) => !(a.slotId === selectedSlotId && a.fromRoomId === currentRoomId)
-        );
-      } else {
-        updated = prev.map((a) => {
-          if (a.slotId === selectedSlotId && a.fromRoomId === currentRoomId) {
-            return { ...a, studentIds: currentOverflowIds };
-          }
-          return a;
-        });
-      }
-
-      localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
-      return updated;
-    });
-  }, [selectedSlotId, currentRoomId, overflowStudents]);
 
   const handleSendSeatingPlan = async () => {
     if (assignedProctors.length === 0) {
@@ -1855,7 +1819,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                       <div className="text-xs">
                         <p className="font-bold text-emerald-300">✓ Overflow assigned</p>
                         <p className="text-[10px] text-emerald-400 mt-1">
-                          {overflowStudents.length} student{overflowStudents.length > 1 ? "s" : ""} →{" "}
+                          {currentOverflowAssignment.studentIds.length} student{currentOverflowAssignment.studentIds.length !== 1 ? "s" : ""} →{" "}
                           <span className="font-bold">{rooms.find((r) => r.id === currentOverflowAssignment.toRoomId)?.name || currentOverflowAssignment.toRoomId}</span>
                         </p>
                         <p className="text-[9px] text-emerald-500 mt-0.5">
