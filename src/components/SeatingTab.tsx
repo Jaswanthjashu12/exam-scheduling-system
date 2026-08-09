@@ -843,10 +843,11 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   const handleAssignOverflow = () => {
     if (!selectedOverflowTargetRoom || overflowStudents.length === 0) return;
+    const targetRoomId = selectedOverflowTargetRoom;
     const newAssignment: OverflowAssignment = {
       slotId: selectedSlotId,
       fromRoomId: currentRoomId,
-      toRoomId: selectedOverflowTargetRoom,
+      toRoomId: targetRoomId,
       studentIds: overflowStudents.map((s) => s.id),
     };
     // Replace any existing assignment for this room+slot
@@ -863,23 +864,25 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     const courseId = selectedEntries[0]?.courseId;
     if (courseId) {
       const exists = entries.some(
-        (e) => e.timeslotId === selectedSlotId && e.courseId === courseId && e.roomId === selectedOverflowTargetRoom
+        (e) => e.timeslotId === selectedSlotId && e.courseId === courseId && e.roomId === targetRoomId
       );
       if (!exists) {
         const newEntry: ScheduleEntry = {
           id: `man-${Date.now()}`,
           courseId,
           timeslotId: selectedSlotId,
-          roomId: selectedOverflowTargetRoom,
+          roomId: targetRoomId,
           invigilatorId: "", // Leave blank so they must assign proctor!
         };
         setEntries([...entries, newEntry]);
       }
     }
 
-    const targetRoomName = rooms.find(r => r.id === selectedOverflowTargetRoom)?.name || selectedOverflowTargetRoom;
+    const targetRoomName = rooms.find(r => r.id === targetRoomId)?.name || targetRoomId;
     alert(`⚠️ Room "${targetRoomName}" has been assigned as an overflow room. Please assign a Proctor/Invigilator to it in the Scheduler Tab!`);
     
+    // Auto-select the newly assigned overflow room in the tab view so the seating arrangement shows immediately!
+    setSelectedRoomId(targetRoomId);
     setSelectedOverflowTargetRoom("");
   };
 
@@ -1718,7 +1721,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                           <select
                             value={selectedOverflowTargetRoom}
                             onChange={(e) => setSelectedOverflowTargetRoom(e.target.value)}
-                            className="flex-grow px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-slate-200"
+                            className="flex-grow px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-200"
                           >
                             <option value="">Select target room…</option>
                             {overflowTargetRooms.map((r) => {
@@ -1736,9 +1739,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                           <button
                             onClick={handleAssignOverflow}
                             disabled={!selectedOverflowTargetRoom}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap"
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap"
                           >
-                            Assign →
+                            Add Seating Plan
                           </button>
                         </div>
                         
@@ -1747,9 +1750,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                             localStorage.setItem("exam_scheduler_focus_add_room", "true");
                             if (setActiveTab) setActiveTab("config");
                           }}
-                          className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-750 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer select-none"
+                          className="w-full py-1.5 bg-slate-900/30 hover:bg-slate-900/50 border border-slate-800/80 hover:border-slate-750 text-slate-400 hover:text-slate-200 rounded-lg text-[9px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer select-none"
                         >
-                          + Configure / Add New Room
+                          Create New Room Definition (Config Tab)
                         </button>
                       </div>
                     </>
