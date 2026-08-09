@@ -135,26 +135,28 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       }
     }
 
-    const courseOverflow = overflowAssignments.find(
-      (a) => a.slotId === selectedSlotId && 
-             courseEntries.some((e) => e.roomId === a.fromRoomId) && 
-             courseEntries.some((e) => e.roomId === a.toRoomId)
+    const targetRoomIds = overflowAssignments.filter(a => a.slotId === selectedSlotId).map(a => a.toRoomId);
+    
+    // Divide students:
+    // 1. Overflow students go to their target rooms
+    const overflowedStudents = courseStudents.filter(s => 
+      overflowAssignments.some(a => a.slotId === selectedSlotId && a.studentIds.includes(s.id))
     );
+    overflowedStudents.forEach(s => {
+      const a = overflowAssignments.find(x => x.slotId === selectedSlotId && x.studentIds.includes(s.id));
+      if (a) studentRoomAssignment[s.id] = a.toRoomId;
+    });
 
-    if (courseOverflow) {
-      courseStudents.forEach((s) => {
-        if (courseOverflow.studentIds.includes(s.id)) {
-          studentRoomAssignment[s.id] = courseOverflow.toRoomId;
-        } else {
-          studentRoomAssignment[s.id] = courseOverflow.fromRoomId;
-        }
+    // 2. Remaining students go to original rooms (divided by capacity if multiple original rooms exist)
+    const remainingStudents = courseStudents.filter(s => !studentRoomAssignment[s.id]);
+    const originalEntries = courseEntries.filter(e => !targetRoomIds.includes(e.roomId));
+    
+    if (originalEntries.length === 1) {
+      remainingStudents.forEach(s => {
+        studentRoomAssignment[s.id] = originalEntries[0].roomId;
       });
-    } else if (courseEntries.length === 1) {
-      courseStudents.forEach((s) => {
-        studentRoomAssignment[s.id] = courseEntries[0].roomId;
-      });
-    } else if (courseEntries.length > 1) {
-      const roomsWithCap = courseEntries
+    } else if (originalEntries.length > 1) {
+      const roomsWithCap = originalEntries
         .map((e) => {
           const r = rooms.find((rm) => rm.id === e.roomId);
           return {
@@ -168,16 +170,21 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       roomsWithCap.forEach((rObj, idx) => {
         let share = 0;
         if (idx === roomsWithCap.length - 1) {
-          share = courseStudents.length - assignedCount;
+          share = remainingStudents.length - assignedCount;
         } else {
-          share = Math.min(rObj.capacity, courseStudents.length - assignedCount);
+          share = Math.min(rObj.capacity, remainingStudents.length - assignedCount);
         }
 
-        const slice = courseStudents.slice(assignedCount, assignedCount + share);
+        const slice = remainingStudents.slice(assignedCount, assignedCount + share);
         slice.forEach((s) => {
           studentRoomAssignment[s.id] = rObj.roomId;
         });
         assignedCount += share;
+      });
+    } else {
+      // Fallback if somehow all entries are overflow targets
+      remainingStudents.forEach(s => {
+        studentRoomAssignment[s.id] = courseEntries[0].roomId;
       });
     }
   });
