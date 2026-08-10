@@ -79,8 +79,19 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   });
   const [selectedOverflowTargetRoom, setSelectedOverflowTargetRoom] = useState<string>("");
 
+  // Find all unique slot IDs scheduled in the database
+  const uniqueSlotIds = Array.from(new Set([
+    ...DEFAULT_TIMESLOTS.map((ts) => ts.id),
+    ...entries.map((e) => e.timeslotId)
+  ])).filter(Boolean);
+
   // Auto-select room on slot change if none selected
   const activeEntries = entries.filter((e) => e.timeslotId === selectedSlotId);
+
+  // Check if there are scheduled entries in this slot using room IDs that are deleted or unassigned
+  const hasUnassignedEntries = activeEntries.some(
+    (e) => !e.roomId || e.roomId === "Unassigned" || !rooms.some(r => r.id === e.roomId)
+  );
   
   // A room is active if it has scheduled entries OR receives overflow in this slot
   const activeRooms = rooms.filter((r) => 
@@ -206,7 +217,13 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   });
 
-  const enrolledStudents = students.filter((s) => studentRoomAssignment[s.id] === currentRoomId);
+  const enrolledStudents = students.filter((s) => {
+    const assignedRoomId = studentRoomAssignment[s.id];
+    if (currentRoomId === "Unassigned") {
+      return !assignedRoomId || assignedRoomId === "Unassigned" || !rooms.some(r => r.id === assignedRoomId);
+    }
+    return assignedRoomId === currentRoomId;
+  });
   const seenStudentIds = new Set<string>(enrolledStudents.map((s) => s.id));
 
   // 2. Total students in room (local + overflow arrivals)
@@ -1382,9 +1399,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 }}
                 className="px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-200 w-full"
               >
-                {DEFAULT_TIMESLOTS.map((ts) => (
-                  <option key={ts.id} value={ts.id} className="bg-[#12151C] text-slate-200">
-                    {getTimeslotExact(ts.id, examStartDate)}
+                {uniqueSlotIds.map((slotId) => (
+                  <option key={slotId} value={slotId} className="bg-[#12151C] text-slate-200">
+                    {getTimeslotExact(slotId, examStartDate)}
                   </option>
                 ))}
               </select>
@@ -1396,14 +1413,19 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                 value={currentRoomId}
                 onChange={(e) => setSelectedRoomId(e.target.value)}
                 className="px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-200 w-full disabled:opacity-50"
-                disabled={activeRooms.length === 0}
+                disabled={activeRooms.length === 0 && !hasUnassignedEntries}
               >
                 {activeRooms.map((r) => (
                   <option key={r.id} value={r.id} className="bg-[#12151C] text-slate-200">
                     {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""})
                   </option>
                 ))}
-                {activeRooms.length === 0 && <option value="">No Active rooms in this timeslot</option>}
+                {hasUnassignedEntries && (
+                  <option value="Unassigned" className="bg-[#12151C] text-red-400 font-semibold">
+                    ⚠️ Unassigned / Deleted Room
+                  </option>
+                )}
+                {activeRooms.length === 0 && !hasUnassignedEntries && <option value="">No Active rooms in this timeslot</option>}
               </select>
             </div>
           </div>
