@@ -215,9 +215,10 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     } else if (originalEntries.length > 1) {
       const roomsWithCap = originalEntries
         .map((e) => {
+          const r = rooms.find((rm) => rm.id === e.roomId);
           return {
             roomId: e.roomId,
-            capacity: getLayoutCapacity(e.roomId, selectedSlotId),
+            capacity: r?.capacity || 30,
           };
         }); // Keep user's custom allocation priority order (do not sort by capacity)
 
