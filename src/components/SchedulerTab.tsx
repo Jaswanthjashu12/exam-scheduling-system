@@ -98,7 +98,7 @@ export default function SchedulerTab({
             roomId: e.roomId,
             capacity: r?.capacity || 30,
           };
-        }).sort((a, b) => b.capacity - a.capacity);
+        }); // Keep user's custom allocation priority order (do not sort by capacity)
         
         const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
         
@@ -1009,7 +1009,7 @@ export default function SchedulerTab({
                             roomId: e.roomId,
                             capacity: r?.capacity || 30,
                           };
-                        }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+                        }); // Keep user's custom allocation priority order (do not sort by capacity)
                         
                         const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
                         
@@ -1191,6 +1191,57 @@ export default function SchedulerTab({
                               );
                             })}
                           </div>
+
+                          {/* Quick Schedule room priority reordering */}
+                          {unschedRoomIds.length > 1 && (
+                            <div className="mt-2.5 space-y-1.5">
+                              <label className="block text-[8px] font-bold text-indigo-400 uppercase tracking-wider">
+                                Classroom Fill Priority (Reorder)
+                              </label>
+                              <div className="space-y-1 bg-[#0A0C10] p-1.5 border border-slate-750 rounded">
+                                {unschedRoomIds.map((rid, idx) => {
+                                  const r = rooms.find(rm => rm.id === rid) || { name: rid, capacity: 30 };
+                                  return (
+                                    <div key={rid} className="flex items-center justify-between bg-[#12151C] px-2 py-1 rounded border border-slate-800 text-[9px] text-slate-200">
+                                      <span className="font-semibold truncate max-w-[130px]">
+                                        {idx + 1}. {r.name} (Cap: {r.capacity})
+                                      </span>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          disabled={idx === 0}
+                                          onClick={() => {
+                                            const next = [...unschedRoomIds];
+                                            const tmp = next[idx];
+                                            next[idx] = next[idx - 1];
+                                            next[idx - 1] = tmp;
+                                            setUnschedRoomIds(next);
+                                          }}
+                                          className="px-1.5 py-0.2 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[8px]"
+                                        >
+                                          ▲
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={idx === unschedRoomIds.length - 1}
+                                          onClick={() => {
+                                            const next = [...unschedRoomIds];
+                                            const tmp = next[idx];
+                                            next[idx] = next[idx + 1];
+                                            next[idx + 1] = tmp;
+                                            setUnschedRoomIds(next);
+                                          }}
+                                          className="px-1.5 py-0.2 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[8px]"
+                                        >
+                                          ▼
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Invigilator option */}
@@ -1423,6 +1474,57 @@ export default function SchedulerTab({
                     <span className="text-[10px] text-slate-500 col-span-2">All rooms are filled in this timeslot</span>
                   )}
                 </div>
+
+                {/* Custom room reordering/fill priority list */}
+                {moveRoomIds.length > 1 && (
+                  <div className="mt-3.5 space-y-2 border-t border-slate-800 pt-3">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                      Classroom Fill Priority (Reorder to adjust fill sequence)
+                    </label>
+                    <div className="space-y-1.5 bg-[#0A0C10] p-2 border border-slate-750 rounded max-h-32 overflow-y-auto">
+                      {moveRoomIds.map((rid, idx) => {
+                        const r = rooms.find(rm => rm.id === rid) || { name: `Deleted Room: ${rid}`, capacity: 30 };
+                        return (
+                          <div key={rid} className="flex items-center justify-between bg-[#12151C] px-2.5 py-1.5 rounded border border-slate-800 text-[10px] text-slate-200">
+                            <span className="font-semibold truncate max-w-[170px]">
+                              {idx + 1}. {r.name} (Cap: {r.capacity})
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => {
+                                  const next = [...moveRoomIds];
+                                  const tmp = next[idx];
+                                  next[idx] = next[idx - 1];
+                                  next[idx - 1] = tmp;
+                                  handleDropdownChange("rooms", next);
+                                }}
+                                className="px-2 py-0.5 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[9px]"
+                              >
+                                ▲ UP
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === moveRoomIds.length - 1}
+                                onClick={() => {
+                                  const next = [...moveRoomIds];
+                                  const tmp = next[idx];
+                                  next[idx] = next[idx + 1];
+                                  next[idx + 1] = tmp;
+                                  handleDropdownChange("rooms", next);
+                                }}
+                                className="px-2 py-0.5 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[9px]"
+                              >
+                                ▼ DN
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Invigilator dropdown */}

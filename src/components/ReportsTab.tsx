@@ -75,7 +75,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
             roomId: e.roomId,
             capacity: r?.capacity || 30,
           };
-        }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+        }); // Keep user's custom allocation priority order (do not sort by capacity)
         
         const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
         
@@ -196,7 +196,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
               roomId: e.roomId,
               capacity: r?.capacity || 30,
             };
-          }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+          }); // Keep user's custom allocation priority order (do not sort by capacity)
           
           const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
           
@@ -403,7 +403,7 @@ export default function ReportsTab({ courses, rooms, students, invigilators, ent
             roomId: e.roomId,
             capacity: r?.capacity || 30,
           };
-        }).sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+        }); // Keep user's custom allocation priority order (do not sort by capacity)
         
         const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
         

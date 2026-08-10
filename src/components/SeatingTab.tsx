@@ -219,8 +219,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             roomId: e.roomId,
             capacity: getLayoutCapacity(e.roomId, selectedSlotId),
           };
-        })
-        .sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
+        }); // Keep user's custom allocation priority order (do not sort by capacity)
 
       let assignedCount = 0;
       roomsWithCap.forEach((rObj, idx) => {
@@ -858,7 +857,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             roomId: e.roomId,
             capacity: r?.capacity || 30,
           };
-        }).sort((a, b) => b.capacity - a.capacity);
+        }); // Keep user's custom allocation priority order (do not sort by capacity)
         
         const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
         
