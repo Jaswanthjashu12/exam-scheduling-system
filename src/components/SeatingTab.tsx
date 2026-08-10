@@ -1275,8 +1275,38 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   };
 
+  // Find all courses in this timeslot that have a capacity deficit
+  const courseCapacityDeficits = Array.from(new Set(slotEntries.map((e) => e.courseId))).map((cid) => {
+    const courseEntries = slotEntries.filter((e) => e.courseId === cid);
+    const courseStudents = students.filter((s) => s.courses.some((c) => c.trim().toUpperCase() === cid.trim().toUpperCase()));
+    
+    const totalCap = courseEntries.reduce((sum, ent) => {
+      const r = rooms.find((rm) => rm.id === ent.roomId);
+      return sum + (r?.capacity || 30);
+    }, 0);
+
+    const deficit = courseStudents.length - totalCap;
+    return { courseId: cid, deficit, totalStudents: courseStudents.length, totalCapacity: totalCap };
+  }).filter((c) => c.deficit > 0);
+
   return (
     <div className="space-y-6">
+      {courseCapacityDeficits.length > 0 && (
+        <div className="print:hidden bg-red-950/35 border border-red-900/50 rounded-2xl p-4 flex items-start gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-red-300 uppercase tracking-wider">Unassigned Students Warning (Timeslot Capacity Deficit)</h4>
+            <div className="text-xs text-red-400/80 space-y-1">
+              {courseCapacityDeficits.map((c) => (
+                <p key={c.courseId}>
+                  Course <span className="font-bold text-red-200">{c.courseId}</span> has <span className="font-bold text-red-200">{c.totalStudents}</span> students, but the total capacity of all assigned classrooms ({c.totalCapacity} seats) is not enough. <span className="font-bold text-white underline">{c.deficit} student{c.deficit !== 1 ? "s" : ""}</span> are left unassigned! Please add another overflow room.
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {sendSuccessMessage && (
         <div className="bg-emerald-950/40 border border-emerald-900/40 p-4 rounded-xl text-emerald-400 text-xs flex items-center justify-between shadow-md">
           <span className="flex items-center gap-2">
