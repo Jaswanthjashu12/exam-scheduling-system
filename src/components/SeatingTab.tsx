@@ -48,6 +48,24 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     const saved = localStorage.getItem("exam_scheduler_allow_same_branch_sec_adjacent");
     return saved !== null ? saved === "true" : true;
   });
+
+  const [gridConfigs, setGridConfigs] = useState<Record<string, { numCols: number; numRows: number; seatsPerCol: number; colHeights?: number[] }>>(() => {
+    const saved = localStorage.getItem("exam_scheduler_grid_configs");
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const getLayoutCapacity = (rid: string, slotId: string) => {
+    const key = `${slotId}_${rid}`;
+    const conf = gridConfigs[key];
+    if (conf) {
+      const numCols = conf.numCols || 6;
+      const numRows = conf.numRows || 6;
+      const colHeights = conf.colHeights || Array(numCols).fill(numRows);
+      return colHeights.reduce((s, h) => s + h, 0);
+    }
+    const r = rooms.find((rm) => rm.id === rid);
+    return r?.capacity || 30;
+  };
   // Overflow assignment state — tracks which overflow students go to which room
   interface OverflowAssignment {
     slotId: string;
@@ -158,10 +176,9 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     } else if (originalEntries.length > 1) {
       const roomsWithCap = originalEntries
         .map((e) => {
-          const r = rooms.find((rm) => rm.id === e.roomId);
           return {
             roomId: e.roomId,
-            capacity: r?.capacity || 30,
+            capacity: getLayoutCapacity(e.roomId, selectedSlotId),
           };
         })
         .sort((a, b) => b.capacity - a.capacity); // Fill larger rooms first
@@ -211,10 +228,6 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
 
   // --- Grid Layout Configuration (per room+slot) ---
   // Store layout configs keyed by seatKey
-  const [gridConfigs, setGridConfigs] = useState<Record<string, { numCols: number; numRows: number; seatsPerCol: number; colHeights?: number[] }>>(() => {
-    const saved = localStorage.getItem("exam_scheduler_grid_configs");
-    return saved ? JSON.parse(saved) : {};
-  });
 
 
 
@@ -1233,8 +1246,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     const courseStudents = students.filter((s) => s.courses.some((c) => c.trim().toUpperCase() === cid.trim().toUpperCase()));
     
     const totalCap = courseEntries.reduce((sum, ent) => {
-      const r = rooms.find((rm) => rm.id === ent.roomId);
-      return sum + (r?.capacity || 30);
+      return sum + getLayoutCapacity(ent.roomId, selectedSlotId);
     }, 0);
 
     const deficit = courseStudents.length - totalCap;
