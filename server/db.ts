@@ -7,12 +7,18 @@ import { Course, Room, Student, Invigilator, ScheduleEntry, AccommodationType } 
 // Ensure database file is opened cleanly with a fallback to the system temporary directory if folder is read-only
 const getDbPath = () => {
   if (process.env.DATABASE_PATH) {
-    const customPath = path.resolve(process.env.DATABASE_PATH);
-    const customDir = path.dirname(customPath);
-    if (!fs.existsSync(customDir)) {
-      fs.mkdirSync(customDir, { recursive: true });
+    try {
+      const customPath = path.resolve(process.env.DATABASE_PATH);
+      const customDir = path.dirname(customPath);
+      if (!fs.existsSync(customDir)) {
+        fs.mkdirSync(customDir, { recursive: true });
+      }
+      const testDb = new Database(customPath);
+      testDb.close();
+      return customPath;
+    } catch (err: any) {
+      console.warn(`[SQLite] Failed to write custom DATABASE_PATH: ${err.message}. Falling back.`);
     }
-    return customPath;
   }
 
   const projectDbDir = typeof __dirname !== 'undefined'
