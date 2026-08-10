@@ -77,6 +77,34 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     const saved = localStorage.getItem("exam_scheduler_overflow_assignments");
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Automatically sanitize overflow assignments to remove stale student IDs when the database roster changes
+  useEffect(() => {
+    if (students.length === 0) return;
+    const activeStudentIds = new Set(students.map(s => s.id));
+    let modified = false;
+    
+    const updated = overflowAssignments.map(a => {
+      const filteredIds = a.studentIds.filter(id => activeStudentIds.has(id));
+      if (filteredIds.length !== a.studentIds.length) {
+        modified = true;
+        return { ...a, studentIds: filteredIds };
+      }
+      return a;
+    }).filter(a => {
+      if (a.studentIds.length === 0) {
+        modified = true;
+        return false;
+      }
+      return true;
+    });
+
+    if (modified) {
+      setOverflowAssignments(updated);
+      localStorage.setItem("exam_scheduler_overflow_assignments", JSON.stringify(updated));
+    }
+  }, [students, overflowAssignments]);
+
   const [selectedOverflowTargetRoom, setSelectedOverflowTargetRoom] = useState<string>("");
 
   // Find all unique slot IDs scheduled in the database
@@ -238,6 +266,16 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
       totalSeenStudentIds.add(s.id);
       totalStudentsInRoom.push(s);
     }
+  });
+
+  console.log("DIAGNOSTIC SeatingTab:", {
+    studentsCount: students?.length,
+    entriesCount: entries?.length,
+    selectedSlotId,
+    currentRoomId,
+    activeRooms: activeRooms.map(r => r.id),
+    enrolledStudentsCount: enrolledStudents?.length,
+    totalStudentsInRoomCount: totalStudentsInRoom?.length,
   });
 
   const roomObj = rooms.find((r) => r.id === currentRoomId);
