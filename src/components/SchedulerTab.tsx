@@ -1481,7 +1481,7 @@ export default function SchedulerTab({
                     <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
                       Classroom Fill Priority (Reorder to adjust fill sequence)
                     </label>
-                    <div className="space-y-1.5 bg-[#0A0C10] p-2 border border-slate-750 rounded max-h-32 overflow-y-auto">
+                    <div className="space-y-1.5 bg-[#0A0C10] p-2 border border-slate-750 rounded">
                       {moveRoomIds.map((rid, idx) => {
                         const r = rooms.find(rm => rm.id === rid) || { name: `Deleted Room: ${rid}`, capacity: 30 };
                         return (
