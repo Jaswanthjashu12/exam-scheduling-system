@@ -1395,12 +1395,31 @@ export default function SchedulerTab({
                       </label>
                     );
                   })}
+                  
+                  {/* Deleted/Orphaned Rooms currently assigned to this entry */}
+                  {moveRoomIds.filter(id => !rooms.some(r => r.id === id)).map((orphanedId) => (
+                    <label key={orphanedId} className="flex items-center gap-1.5 text-[10px] text-red-400 cursor-pointer select-none col-span-2 border border-red-900/30 bg-red-950/10 px-2 py-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={true}
+                        onChange={() => {
+                          const nextIds = moveRoomIds.filter((id) => id !== orphanedId);
+                          handleDropdownChange("rooms", nextIds);
+                        }}
+                        className="accent-red-500 rounded cursor-pointer text-red-500 focus:ring-red-500"
+                      />
+                      <span className="truncate font-semibold flex items-center gap-1" title={`Room "${orphanedId}" has been deleted from settings`}>
+                        ⚠️ Deleted from Settings: <span className="font-bold underline">{orphanedId}</span> (Capacity: 30)
+                      </span>
+                    </label>
+                  ))}
+
                   {rooms.filter((room) => {
                     const isChecked = moveRoomIds.includes(room.id);
                     if (isChecked) return true;
                     const occupancy = getRoomOccupancyInSlot(room.id, moveSlotId, editingEntry?.courseId || undefined);
                     return occupancy < room.capacity;
-                  }).length === 0 && (
+                  }).length === 0 && moveRoomIds.filter(id => !rooms.some(r => r.id === id)).length === 0 && (
                     <span className="text-[10px] text-slate-500 col-span-2">All rooms are filled in this timeslot</span>
                   )}
                 </div>
