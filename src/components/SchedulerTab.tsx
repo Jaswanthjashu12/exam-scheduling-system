@@ -1385,7 +1385,7 @@ export default function SchedulerTab({
       {/* Manual Override Settings Edit Modal Panel */}
       {editingEntry && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[#12151C] rounded-2xl max-w-md w-full shadow-2xl border border-slate-800 overflow-hidden">
+          <div className="bg-[#12151C] rounded-2xl max-w-md w-full shadow-2xl border border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-5 py-4 bg-[#0A0C10] border-b border-slate-800/80 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold text-blue-400 font-mono uppercase">Interactive Manual Override Editor</span>
@@ -1398,7 +1398,7 @@ export default function SchedulerTab({
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-grow">
               {/* Timeslot dropdown */}
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5">Change Timeslot Session</label>
