@@ -6,6 +6,15 @@ import { Course, Room, Student, Invigilator, ScheduleEntry, AccommodationType } 
 
 // Ensure database file is opened cleanly with a fallback to the system temporary directory if folder is read-only
 const getDbPath = () => {
+  if (process.env.DATABASE_PATH) {
+    const customPath = path.resolve(process.env.DATABASE_PATH);
+    const customDir = path.dirname(customPath);
+    if (!fs.existsSync(customDir)) {
+      fs.mkdirSync(customDir, { recursive: true });
+    }
+    return customPath;
+  }
+
   const projectDbDir = typeof __dirname !== 'undefined'
     ? path.resolve(__dirname, '..', 'data')
     : (import.meta as any).dirname
