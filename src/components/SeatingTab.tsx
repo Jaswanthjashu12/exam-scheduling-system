@@ -1898,42 +1898,44 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                   ) : (
                     <>
                       <p className="text-[10px] text-slate-400">Pick a room in <span className="font-bold text-white">{getTimeslotExact(selectedSlotId, examStartDate)}</span> to send the overflow students to:</p>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={selectedOverflowTargetRoom}
-                            onChange={(e) => setSelectedOverflowTargetRoom(e.target.value)}
-                            className="flex-grow px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-200"
-                          >
-                            <option value="">Select target room…</option>
-                            {overflowTargetRooms.map((r) => {
-                              const isAssigned = activeEntries.some((e) => e.roomId === r.id);
-                              return (
-                                <option key={r.id} value={r.id}>
-                                  {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""}) — cap {r.capacity} {isAssigned ? "(Active)" : "(Free)"}
-                                </option>
-                              );
-                            })}
-                            {overflowTargetRooms.length === 0 && (
-                              <option disabled>No other available rooms in system</option>
-                            )}
-                          </select>
+                      <div className="flex flex-col gap-3">
+                        <select
+                          value={selectedOverflowTargetRoom}
+                          onChange={(e) => setSelectedOverflowTargetRoom(e.target.value)}
+                          className="w-full px-3 py-2 bg-[#0A0C10] border border-slate-700 text-xs font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-200"
+                        >
+                          <option value="">Select target room…</option>
+                          {overflowTargetRooms.map((r) => {
+                            const isAssigned = activeEntries.some((e) => e.roomId === r.id);
+                            return (
+                              <option key={r.id} value={r.id}>
+                                {r.name} ({r.building}{r.block ? ` - ${r.block}` : ""}) — cap {r.capacity} {isAssigned ? "(Active)" : "(Free)"}
+                              </option>
+                            );
+                          })}
+                          {overflowTargetRooms.length === 0 && (
+                            <option disabled>No other available rooms in system</option>
+                          )}
+                        </select>
+                        
+                        <div className="flex gap-2.5">
                           <button
                             onClick={handleAssignOverflow}
                             disabled={!selectedOverflowTargetRoom}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap"
+                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold rounded-lg transition cursor-pointer text-center"
                           >
                             Add Seating Plan
                           </button>
 
                           <button
                             onClick={handleAutoResolveSingleRoomOverflow}
-                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                            className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
                             title="Auto-find the best free room and assign these overflow students immediately"
                           >
                             <Zap className="w-3.5 h-3.5" /> Auto-Resolve
                           </button>
                         </div>
+                      </div>
                         
                         <button
                           onClick={() => {
@@ -1944,8 +1946,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
                         >
                           Create New Room Definition (Config Tab)
                         </button>
-                      </div>
-                    </>
+                      </>
                   )}
                 </div>
               </div>
