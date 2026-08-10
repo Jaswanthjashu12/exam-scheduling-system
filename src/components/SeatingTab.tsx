@@ -216,6 +216,37 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     return saved ? JSON.parse(saved) : {};
   });
 
+  // Automatically bring saved grid configurations down to database capacity limits if they exceed them
+  useEffect(() => {
+    if (rooms.length === 0) return;
+    let modified = false;
+    const updated = { ...gridConfigs };
+
+    Object.keys(updated).forEach((key) => {
+      const parts = key.split("_");
+      const roomId = parts[1];
+      if (!roomId) return;
+      const room = rooms.find((r) => r.id === roomId);
+      if (!room) return;
+
+      const conf = updated[key];
+      const cap = room.capacity || 40;
+      if (conf.numCols * conf.numRows > cap) {
+        conf.numRows = Math.max(1, Math.floor(cap / conf.numCols));
+        conf.seatsPerCol = conf.numRows;
+        if (conf.colHeights) {
+          conf.colHeights = conf.colHeights.map((h) => Math.min(h, conf.numRows));
+        }
+        modified = true;
+      }
+    });
+
+    if (modified) {
+      setGridConfigs(updated);
+      localStorage.setItem("exam_scheduler_grid_configs", JSON.stringify(updated));
+    }
+  }, [rooms]);
+
   const seatKey = `${selectedSlotId}_${currentRoomId}`;
 
   // Derive defaults from room capacity
