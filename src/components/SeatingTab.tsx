@@ -216,36 +216,7 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Automatically bring saved grid configurations down to database capacity limits if they exceed them
-  useEffect(() => {
-    if (rooms.length === 0) return;
-    let modified = false;
-    const updated = { ...gridConfigs };
 
-    Object.keys(updated).forEach((key) => {
-      const parts = key.split("_");
-      const roomId = parts[1];
-      if (!roomId) return;
-      const room = rooms.find((r) => r.id === roomId);
-      if (!room) return;
-
-      const conf = updated[key];
-      const cap = room.capacity || 40;
-      if (conf.numCols * conf.numRows > cap) {
-        conf.numRows = Math.max(1, Math.floor(cap / conf.numCols));
-        conf.seatsPerCol = conf.numRows;
-        if (conf.colHeights) {
-          conf.colHeights = conf.colHeights.map((h) => Math.min(h, conf.numRows));
-        }
-        modified = true;
-      }
-    });
-
-    if (modified) {
-      setGridConfigs(updated);
-      localStorage.setItem("exam_scheduler_grid_configs", JSON.stringify(updated));
-    }
-  }, [rooms]);
 
   const seatKey = `${selectedSlotId}_${currentRoomId}`;
 
@@ -261,32 +232,16 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
   };
 
   const numCols = Math.max(1, currentGridConfig.numCols);
-  const dbCapacity = roomObj?.capacity || 40;
-  let numRows = Math.max(1, currentGridConfig.numRows);
-  if (numCols * numRows > dbCapacity) {
-    numRows = Math.max(1, Math.floor(dbCapacity / numCols));
-  }
+  const numRows = Math.max(1, currentGridConfig.numRows);
   // seatsPerCol is the number of seats in each column = numRows (they are the same thing)
   // We display seatsPerCol as a linked control; changing it updates numRows
   const seatsPerCol = numRows;
 
-  const colHeights = (currentGridConfig.colHeights || Array(numCols).fill(numRows)).map(h => Math.min(h, numRows));
+  const colHeights = currentGridConfig.colHeights || Array(numCols).fill(numRows);
 
   const updateGridConfig = (patch: Partial<{ numCols: number; numRows: number; seatsPerCol: number; colHeights: number[] }>) => {
-    let nextCols = patch.numCols !== undefined ? patch.numCols : numCols;
-    let nextRows = patch.numRows !== undefined ? patch.numRows : numRows;
-
-    // Enforce database capacity constraint: nextCols * nextRows cannot exceed dbCapacity
-    if (nextCols * nextRows > dbCapacity) {
-      if (patch.numCols !== undefined) {
-        nextCols = Math.max(1, Math.floor(dbCapacity / nextRows));
-        patch.numCols = nextCols;
-      } else if (patch.numRows !== undefined) {
-        nextRows = Math.max(1, Math.floor(dbCapacity / nextCols));
-        patch.numRows = nextRows;
-      }
-    }
-
+    const nextCols = patch.numCols !== undefined ? patch.numCols : numCols;
+    const nextRows = patch.numRows !== undefined ? patch.numRows : numRows;
     let nextHeights = patch.colHeights || currentGridConfig.colHeights || Array(nextCols).fill(nextRows);
 
     if (nextHeights.length !== nextCols) {
@@ -300,9 +255,6 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     if (patch.numRows !== undefined && patch.numRows !== numRows) {
       nextHeights = nextHeights.map((h) => (h === numRows ? patch.numRows! : h));
     }
-
-    // Double check height limits
-    nextHeights = nextHeights.map((h) => Math.min(h, nextRows));
 
     const updated = {
       ...gridConfigs,
