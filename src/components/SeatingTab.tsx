@@ -267,6 +267,24 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
     }
   });
 
+  const courseAllocations = Object.keys(courseEntriesMap).map(cid => {
+    const course = courses.find(c => c.id === cid);
+    const courseStus = students.filter(s => s.courses.some(c => c.trim().toUpperCase() === cid.trim().toUpperCase()));
+    
+    const roomCounts: Record<string, number> = {};
+    courseStus.forEach(s => {
+      const rid = studentRoomAssignment[s.id] || "Unassigned";
+      roomCounts[rid] = (roomCounts[rid] || 0) + 1;
+    });
+    
+    return {
+      courseId: cid,
+      courseName: course?.name || cid,
+      total: courseStus.length,
+      roomCounts,
+    };
+  });
+
   console.log("DIAGNOSTIC SeatingTab:", {
     studentsCount: students?.length,
     entriesCount: entries?.length,
@@ -1467,6 +1485,48 @@ export default function SeatingTab({ courses, rooms, students, invigilators, ent
             </div>
           </div>
         </div>
+
+        {/* Proportional Student Allocation Summary Bar */}
+        {courseAllocations.length > 0 && (
+          <div className="mt-4 p-3.5 bg-[#0A0C10] rounded-xl border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                📊 Student Allocation Summary (Timeslot-wide Distribution)
+              </span>
+              <span className="text-[9px] text-slate-500 font-semibold">
+                Based on custom fill priority sequence
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {courseAllocations.map((alloc) => (
+                <div key={alloc.courseId} className="text-xs text-slate-300 bg-[#12151C] p-2.5 rounded-lg border border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold">
+                    {alloc.courseId} - {alloc.courseName}:{" "}
+                    <span className="text-indigo-400 font-bold">{alloc.total} enrolled</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                    {Object.entries(alloc.roomCounts).map(([rId, count]) => {
+                      const rName = rId === "Unassigned" ? "Unassigned (Overflow)" : (rooms.find(rm => rm.id === rId)?.name || rId);
+                      const isCurrent = rId === currentRoomId;
+                      return (
+                        <span 
+                          key={rId} 
+                          className={`px-2 py-0.5 rounded border font-semibold ${
+                            isCurrent 
+                              ? "bg-indigo-950/40 text-indigo-300 border-indigo-700/50 shadow-xs" 
+                              : "bg-[#0A0C10] text-slate-400 border-slate-800"
+                          }`}
+                        >
+                          {rName}: <span className={isCurrent ? "text-white font-bold" : "text-slate-300"}>{count}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Grid Layout Configuration Row */}
         {currentRoomId && (
