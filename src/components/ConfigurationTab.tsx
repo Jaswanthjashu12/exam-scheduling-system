@@ -74,6 +74,7 @@ export default function ConfigurationTab({
   const [newCourseYear, setNewCourseYear] = useState<number>(1);
   const [courseFilterBranch, setCourseFilterBranch] = useState("all");
   const [courseFilterYear, setCourseFilterYear] = useState<string>("all");
+  const [invigilatorFilterDept, setInvigilatorFilterDept] = useState<string>("all");
 
   // New academic branch inputs
   const [newBranchInput, setNewBranchInput] = useState("");
@@ -1697,11 +1698,28 @@ export default function ConfigurationTab({
 
               {/* Grid or Table list */}
               <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-medium text-slate-404 text-slate-400">Active Invigilators (Proctors)</h3>
-                  <button onClick={() => openImportModal('invigilators')} className="text-emerald-400 hover:text-emerald-300 cursor-pointer font-semibold flex items-center gap-1 select-none bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition hover:bg-emerald-500/15 text-[11px]">
-                    <Upload className="w-3 h-3" /> Import Excel
-                  </button>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                  <h3 className="text-xs font-medium text-slate-400">Active Invigilators (Proctors)</h3>
+                  <div className="flex items-center gap-3">
+                    {/* Branch / Department Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department:</span>
+                      <select
+                        value={invigilatorFilterDept}
+                        onChange={(e) => setInvigilatorFilterDept(e.target.value)}
+                        className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="all">🔍 View All Departments</option>
+                        {Array.from(new Set(invigilators.map((i) => i.department).filter(Boolean))).sort().map((dept) => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button onClick={() => openImportModal('invigilators')} className="text-emerald-400 hover:text-emerald-300 cursor-pointer font-semibold flex items-center gap-1 select-none bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg transition hover:bg-emerald-500/15 text-[11px]">
+                      <Upload className="w-3 h-3" /> Import Excel
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
                   <table className="w-full text-left border-collapse">
@@ -1716,7 +1734,10 @@ export default function ConfigurationTab({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40 text-xs text-slate-300">
-                      {invigilators.map((invig) => (
+                      {invigilators.filter((invig) => {
+                        if (invigilatorFilterDept === "all") return true;
+                        return invig.department === invigilatorFilterDept;
+                      }).map((invig) => (
                         <tr key={invig.id} className="hover:bg-slate-800/10">
                           <td className="px-4 py-2.5 font-mono font-semibold text-white">{invig.id}</td>
                           <td className="px-4 py-2.5 font-medium text-slate-200">
