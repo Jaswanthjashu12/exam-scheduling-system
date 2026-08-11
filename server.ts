@@ -63,7 +63,16 @@ async function startServer() {
 
   // API endpoints
   app.get("/api/health", (req, res) => {
-    res.json({ status: "healthy", timestamp: new Date().toISOString() });
+    res.json({
+      status: "healthy",
+      version: "1.0.4-auth-db-v5",
+      timestamp: new Date().toISOString(),
+      routes: [
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/users"
+      ]
+    });
   });
 
   // Lazy Gemini API wrapper to suggest optimizations based on current schedules and conflicts

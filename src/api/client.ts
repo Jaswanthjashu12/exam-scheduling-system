@@ -4,8 +4,9 @@ const API_BASE = '';
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'Request failed');
+    const err = await res.json().catch(() => ({ error: null }));
+    const msg = err.error || `Error ${res.status}: ${res.statusText} (URL: ${res.url})`;
+    throw new Error(msg);
   }
   // For 204 No Content, return empty/undefined
   if (res.status === 204) {
