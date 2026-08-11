@@ -150,6 +150,7 @@ export default function SchedulerTab({
   const [newRoomId, setNewRoomId] = useState("");
   const [newSlotId, setNewSlotId] = useState("");
   const [newInvigId, setNewInvigId] = useState("");
+  const [newInvigId2, setNewInvigId2] = useState(""); // optional second proctor
   const [newStudentCount, setNewStudentCount] = useState(15);
 
   const handleCreateAndScheduleNewExam = () => {
@@ -165,7 +166,9 @@ export default function SchedulerTab({
 
     const tSlotId = newSlotId || DEFAULT_TIMESLOTS[0]?.id || "";
     const tRoomId = newRoomId || rooms[0]?.id || "";
-    const tInvigId = newInvigId || (invigilators[0]?.id || "");
+    
+    const invList = [newInvigId, newInvigId2].filter(Boolean);
+    const tInvigId = invList.length > 0 ? invList.join(",") : (invigilators[0]?.id || "");
 
     if (!tSlotId || !tRoomId) {
       alert("Please configure at least one Room and one Timeslot.");
@@ -994,18 +997,37 @@ export default function SchedulerTab({
               <div>
                 <span className="text-[9px] font-bold text-emerald-400 uppercase bg-emerald-950/40 border border-emerald-900/30 px-2 py-0.5 rounded block w-fit mb-2">4. Assign Proctor</span>
                 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Invigilator Staff Duty</label>
-                  <select
-                    value={newInvigId}
-                    onChange={(e) => setNewInvigId(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
-                  >
-                    <option value="">-- Let System Auto Assign Later --</option>
-                    {invigilators.map((inv) => (
-                      <option key={inv.id} value={inv.id}>{inv.name} ({inv.department || "General"})</option>
-                    ))}
-                  </select>
+                <div className="space-y-1.5">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Invigilator Staff Duty</label>
+                    <select
+                      value={newInvigId}
+                      onChange={(e) => setNewInvigId(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
+                    >
+                      <option value="">-- Let System Auto Assign Later --</option>
+                      {invigilators.map((inv) => (
+                        <option key={inv.id} value={inv.id}>{inv.name} ({inv.department || "General"})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block flex items-center justify-between">
+                      <span>Secondary Proctor</span>
+                      <span className="text-[8px] text-slate-500 font-bold normal-case tracking-normal">(Optional)</span>
+                    </label>
+                    <select
+                      value={newInvigId2}
+                      onChange={(e) => setNewInvigId2(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
+                    >
+                      <option value="">-- No Secondary Proctor --</option>
+                      {invigilators.filter(inv => inv.id !== newInvigId).map((inv) => (
+                        <option key={inv.id} value={inv.id}>{inv.name} ({inv.department || "General"})</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
