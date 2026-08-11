@@ -84,6 +84,8 @@ export default function SchedulerTab({
   const [newCourseBranch, setNewCourseBranch] = useState("");
   const [newCourseYear, setNewCourseYear] = useState<number>(1);
   const [newCourseDuration, setNewCourseDuration] = useState(120);
+  const [isCustomNewDuration, setIsCustomNewDuration] = useState(false);
+  const [isCustomUnschedDuration, setIsCustomUnschedDuration] = useState(false);
   const [newCoursePriority, setNewCoursePriority] = useState<"High" | "Medium" | "Low">("Medium");
   const getRoomOccupancyInSlot = (roomId: string, slotId: string, excludeCourseId?: string) => {
     const roomEntries = entries.filter((e) => e.timeslotId === slotId && e.roomId === roomId && e.courseId !== excludeCourseId);
@@ -800,15 +802,39 @@ export default function SchedulerTab({
               
               <div className="space-y-1">
                 <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Duration</label>
-                <select
-                  value={newCourseDuration}
-                  onChange={(e) => setNewCourseDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
-                >
-                  <option value={90}>90 Min</option>
-                  <option value={120}>120 Min</option>
-                  <option value={180}>180 Min</option>
-                </select>
+                <div className="space-y-1.5">
+                  <select
+                    value={isCustomNewDuration ? "custom" : newCourseDuration}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "custom") {
+                        setIsCustomNewDuration(true);
+                      } else {
+                        setIsCustomNewDuration(false);
+                        setNewCourseDuration(Number(val));
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-xs bg-[#12151C] border border-slate-700/80 rounded-lg text-slate-200 focus:outline-none cursor-pointer font-semibold"
+                  >
+                    <option value={90}>90 Min</option>
+                    <option value={120}>120 Min</option>
+                    <option value={180}>180 Min</option>
+                    <option value="custom">✍️ Custom Duration...</option>
+                  </select>
+                  {isCustomNewDuration && (
+                    <div className="flex items-center gap-1.5 bg-[#0D1017] p-2 border border-slate-800 rounded-lg">
+                      <input
+                        type="number"
+                        min={1}
+                        value={newCourseDuration}
+                        onChange={(e) => setNewCourseDuration(Number(e.target.value))}
+                        className="w-20 px-2 py-1 text-xs bg-[#12151C] border border-slate-700 rounded text-slate-200 font-semibold font-mono"
+                        placeholder="Minutes"
+                      />
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">mins</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -1316,16 +1342,40 @@ export default function SchedulerTab({
 
                         <div className="space-y-1">
                           <label className="text-[9px] font-bold text-slate-400 uppercase block">Duration (mins)</label>
-                          <select
-                            value={unschedDuration}
-                            onChange={(e) => setUnschedDuration(Number(e.target.value))}
-                            className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
-                          >
-                            <option value={90}>90 Min</option>
-                            <option value={120}>120 Min</option>
-                            <option value={150}>150 Min</option>
-                            <option value={180}>180 Min</option>
-                          </select>
+                          <div className="space-y-1.5">
+                            <select
+                              value={isCustomUnschedDuration ? "custom" : unschedDuration}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "custom") {
+                                  setIsCustomUnschedDuration(true);
+                                } else {
+                                  setIsCustomUnschedDuration(false);
+                                  setUnschedDuration(Number(val));
+                                }
+                              }}
+                              className="w-full bg-[#0A0C10] border border-slate-700 rounded p-1 text-[11px] text-slate-200 cursor-pointer"
+                            >
+                              <option value={90}>90 Min</option>
+                              <option value={120}>120 Min</option>
+                              <option value={150}>150 Min</option>
+                              <option value={180}>180 Min</option>
+                              <option value="custom">✍️ Custom...</option>
+                            </select>
+                            {isCustomUnschedDuration && (
+                              <div className="flex items-center gap-1 bg-[#0A0C10] p-1 border border-slate-800 rounded">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={unschedDuration}
+                                  onChange={(e) => setUnschedDuration(Number(e.target.value))}
+                                  className="w-16 px-1.5 py-0.5 text-[10px] bg-[#12151C] border border-slate-700 rounded text-slate-200 font-semibold font-mono"
+                                  placeholder="Mins"
+                                />
+                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">mins</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {quickScheduleError && (
