@@ -1199,46 +1199,56 @@ export default function SchedulerTab({
                                 Classroom Fill Priority (Reorder)
                               </label>
                               <div className="space-y-1 bg-[#0A0C10] p-1.5 border border-slate-750 rounded">
-                                {unschedRoomIds.map((rid, idx) => {
-                                  const r = rooms.find(rm => rm.id === rid) || { name: rid, capacity: 30 };
-                                  return (
-                                    <div key={rid} className="flex items-center justify-between bg-[#12151C] px-2 py-1 rounded border border-slate-800 text-[9px] text-slate-200">
-                                      <span className="font-semibold truncate max-w-[130px]">
-                                        {idx + 1}. {r.name} (Cap: {r.capacity})
-                                      </span>
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        <button
-                                          type="button"
-                                          disabled={idx === 0}
-                                          onClick={() => {
-                                            const next = [...unschedRoomIds];
-                                            const tmp = next[idx];
-                                            next[idx] = next[idx - 1];
-                                            next[idx - 1] = tmp;
-                                            setUnschedRoomIds(next);
-                                          }}
-                                          className="px-1.5 py-0.2 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[8px]"
-                                        >
-                                          ▲
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={idx === unschedRoomIds.length - 1}
-                                          onClick={() => {
-                                            const next = [...unschedRoomIds];
-                                            const tmp = next[idx];
-                                            next[idx] = next[idx + 1];
-                                            next[idx + 1] = tmp;
-                                            setUnschedRoomIds(next);
-                                          }}
-                                          className="px-1.5 py-0.2 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[8px]"
-                                        >
-                                          ▼
-                                        </button>
+                                {unschedRoomIds
+                                  .filter(rid => rid && rid !== "null" && rooms.some(r => r.id === rid))
+                                  .map((rid, idx, arr) => {
+                                    const r = rooms.find(rm => rm.id === rid)!;
+                                    return (
+                                      <div key={rid} className="flex items-center justify-between bg-[#12151C] px-2 py-1 rounded border border-slate-800 text-[9px] text-slate-200">
+                                        <span className="font-semibold truncate max-w-[130px]">
+                                          {idx + 1}. {r.name} (Cap: {r.capacity})
+                                        </span>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <button
+                                            type="button"
+                                            disabled={idx === 0}
+                                            onClick={() => {
+                                              const next = [...unschedRoomIds];
+                                              const currIndex = next.indexOf(rid);
+                                              const prevRid = arr[idx - 1];
+                                              const prevIndex = next.indexOf(prevRid);
+                                              if (currIndex !== -1 && prevIndex !== -1) {
+                                                next[currIndex] = prevRid;
+                                                next[prevIndex] = rid;
+                                                setUnschedRoomIds(next);
+                                              }
+                                            }}
+                                            className="px-1.5 py-0.2 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[8px]"
+                                          >
+                                            ▲
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={idx === arr.length - 1}
+                                            onClick={() => {
+                                              const next = [...unschedRoomIds];
+                                              const currIndex = next.indexOf(rid);
+                                              const nextRid = arr[idx + 1];
+                                              const nextIndex = next.indexOf(nextRid);
+                                              if (currIndex !== -1 && nextIndex !== -1) {
+                                                next[currIndex] = nextRid;
+                                                next[nextIndex] = rid;
+                                                setUnschedRoomIds(next);
+                                              }
+                                            }}
+                                            className="px-1.5 py-0.2 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[8px]"
+                                          >
+                                            ▼
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  })}
                               </div>
                             </div>
                           )}
@@ -1482,46 +1492,56 @@ export default function SchedulerTab({
                       Classroom Fill Priority (Reorder to adjust fill sequence)
                     </label>
                     <div className="space-y-1.5 bg-[#0A0C10] p-2 border border-slate-750 rounded">
-                      {moveRoomIds.map((rid, idx) => {
-                        const r = rooms.find(rm => rm.id === rid) || { name: `Deleted Room: ${rid}`, capacity: 30 };
-                        return (
-                          <div key={rid} className="flex items-center justify-between bg-[#12151C] px-2.5 py-1.5 rounded border border-slate-800 text-[10px] text-slate-200">
-                            <span className="font-semibold truncate max-w-[170px]">
-                              {idx + 1}. {r.name} (Cap: {r.capacity})
-                            </span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                type="button"
-                                disabled={idx === 0}
-                                onClick={() => {
-                                  const next = [...moveRoomIds];
-                                  const tmp = next[idx];
-                                  next[idx] = next[idx - 1];
-                                  next[idx - 1] = tmp;
-                                  handleDropdownChange("rooms", next);
-                                }}
-                                className="px-2 py-0.5 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[9px]"
-                              >
-                                ▲ UP
-                              </button>
-                              <button
-                                type="button"
-                                disabled={idx === moveRoomIds.length - 1}
-                                onClick={() => {
-                                  const next = [...moveRoomIds];
-                                  const tmp = next[idx];
-                                  next[idx] = next[idx + 1];
-                                  next[idx + 1] = tmp;
-                                  handleDropdownChange("rooms", next);
-                                }}
-                                className="px-2 py-0.5 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[9px]"
-                              >
-                                ▼ DN
-                              </button>
+                      {moveRoomIds
+                        .filter(rid => rid && rid !== "null" && rooms.some(r => r.id === rid))
+                        .map((rid, idx, arr) => {
+                          const r = rooms.find(rm => rm.id === rid)!;
+                          return (
+                            <div key={rid} className="flex items-center justify-between bg-[#12151C] px-2.5 py-1.5 rounded border border-slate-800 text-[10px] text-slate-200">
+                              <span className="font-semibold truncate max-w-[170px]">
+                                {idx + 1}. {r.name} (Cap: {r.capacity})
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => {
+                                    const next = [...moveRoomIds];
+                                    const currIndex = next.indexOf(rid);
+                                    const prevRid = arr[idx - 1];
+                                    const prevIndex = next.indexOf(prevRid);
+                                    if (currIndex !== -1 && prevIndex !== -1) {
+                                      next[currIndex] = prevRid;
+                                      next[prevIndex] = rid;
+                                      handleDropdownChange("rooms", next);
+                                    }
+                                  }}
+                                  className="px-2 py-0.5 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[9px]"
+                                >
+                                  ▲ UP
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === arr.length - 1}
+                                  onClick={() => {
+                                    const next = [...moveRoomIds];
+                                    const currIndex = next.indexOf(rid);
+                                    const nextRid = arr[idx + 1];
+                                    const nextIndex = next.indexOf(nextRid);
+                                    if (currIndex !== -1 && nextIndex !== -1) {
+                                      next[currIndex] = nextRid;
+                                      next[nextIndex] = rid;
+                                      handleDropdownChange("rooms", next);
+                                    }
+                                  }}
+                                  className="px-2 py-0.5 bg-[#0A0C10] border border-slate-700 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer font-bold font-mono text-[9px]"
+                                >
+                                  ▼ DN
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
                     </div>
                   </div>
                 )}
