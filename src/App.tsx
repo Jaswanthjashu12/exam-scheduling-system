@@ -545,31 +545,7 @@ export default function App() {
                 <p className="text-slate-400 text-xs leading-relaxed font-light">
                   Welcome to the control center. Import scheduling parameters, automatically compute proctor allocations, map wheelchair floor access, and eliminate student back-to-back overlaps smoothly.
                 </p>
-                <div className="pt-2 flex flex-wrap gap-2.5 items-center">
-                  <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">⚡ Actions:</span>
-                  <button
-                    onClick={loadSimpleData}
-                    className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-bold rounded-lg hover:bg-blue-600 hover:text-white transition cursor-pointer select-none"
-                    title="Load 6-course, 50-student, 10-invigilator demo dataset"
-                  >
-                    ✨ Load 6-Course / 50-Student Dataset
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm("Are you sure you want to completely delete all courses, rooms, students, and active assignments to reset the database counts to 0?")) {
-                        setCourses([]);
-                        setRooms([]);
-                        setStudents([]);
-                        setInvigilators([]);
-                        setEntries([]);
-                      }
-                    }}
-                    className="px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:text-white text-[11px] font-bold rounded-lg transition cursor-pointer select-none"
-                    title="Delete all data to start with 0 counts"
-                  >
-                    🗑 Clear Database (Reset Counts to 0)
-                  </button>
-                </div>
+                
               </div>
               <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-radial from-blue-500/5 to-transparent pointer-events-none hidden lg:block"></div>
             </div>
