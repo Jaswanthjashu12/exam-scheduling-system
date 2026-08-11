@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -568,7 +569,6 @@ Rules:
         console.error("Failed to run checkpoint pragma:", checkpointErr);
       }
       
-      const fs = require('fs');
       if (fs.existsSync(dbPath)) {
         res.download(dbPath, "exam_scheduler.db");
       } else {
