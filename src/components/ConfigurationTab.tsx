@@ -1720,10 +1720,7 @@ export default function ConfigurationTab({
                         className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         <option value="all">🔍 View All Departments</option>
-                        {Array.from(new Set([
-                          ...invigilators.map((i) => i.department).filter(Boolean),
-                          ...branches
-                        ])).sort().map((dept) => (
+                        {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((dept) => (
                           <option key={dept} value={dept}>{dept}</option>
                         ))}
                       </select>
