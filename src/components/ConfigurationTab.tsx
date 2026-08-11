@@ -9,6 +9,22 @@ import { getCourseEnrollment, getTimeslotExact, DEFAULT_TIMESLOTS } from "../uti
 import { Plus, Trash, Edit2, GraduationCap, School, Users, Key, Briefcase, FileText, Check, AlertCircle, Info, Sparkles, X, Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Database } from "lucide-react";
 import * as api from "../api/client";
 
+const BRANCH_FULL_NAMES: Record<string, string> = {
+  "CIVIL": "Civil Engineering",
+  "CSE": "Computer Science & Engineering",
+  "CSE-AIDS": "CSE (AI & DS)",
+  "CSE-AIML": "CSE (AI & ML)",
+  "CSE-CYBER": "CSE (Cyber Security)",
+  "ECE": "Electronics & Communication Engineering",
+  "EEE": "Electrical & Electronics Engineering",
+  "IT": "Information Technology",
+  "MECH": "Mechanical Engineering"
+};
+
+export function getBranchFullName(code: string): string {
+  return BRANCH_FULL_NAMES[code.toUpperCase()] || code;
+}
+
 interface ConfigurationTabProps {
   courses: Course[];
   setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
@@ -774,7 +790,7 @@ export default function ConfigurationTab({
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-[#0A0C10]/40 rounded-xl border border-slate-800">
               {branches.map((bName) => (
                 <div key={bName} className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 bg-slate-805 bg-slate-800/60 border border-slate-700/60 text-slate-200 text-xs rounded-lg hover:border-slate-600 transition">
-                  <span className="font-semibold text-[11px]">{bName}</span>
+                  <span className="font-semibold text-[11px]">{getBranchFullName(bName)}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -1003,7 +1019,7 @@ export default function ConfigurationTab({
                   >
                     <option value="" className="bg-[#12151C] text-slate-400">-- Choose Branch / Department --</option>
                     {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((b) => (
-                      <option key={b} value={b} className="bg-[#12151C]">{b}</option>
+                      <option key={b} value={b} className="bg-[#12151C]">{getBranchFullName(b)}</option>
                     ))}
                   </select>
                 </div>
@@ -1053,7 +1069,7 @@ export default function ConfigurationTab({
                     >
                       <option value="all">📂 View All Branches</option>
                       {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((b) => (
-                        <option key={b} value={b}>{b}</option>
+                        <option key={b} value={b}>{getBranchFullName(b)}</option>
                       ))}
                     </select>
                     <select
@@ -1128,7 +1144,7 @@ export default function ConfigurationTab({
                               <td className="px-4 py-2.5 font-medium text-slate-200">{course.name}</td>
                               <td className="px-4 py-2.5">
                                 <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800 text-[10px] font-semibold">
-                                  {course.branch || "General Academic"}
+                                  {getBranchFullName(course.branch) || "General Academic"}
                                 </span>
                               </td>
                               <td className="px-4 py-2.5">
@@ -1560,7 +1576,7 @@ export default function ConfigurationTab({
                       <option value="all">🎓 View All Branches</option>
                       {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((branch) => (
                         <option key={branch} value={branch}>
-                          {branch}
+                          {getBranchFullName(branch)}
                         </option>
                       ))}
                     </select>
@@ -1727,7 +1743,7 @@ export default function ConfigurationTab({
                     >
                       <option value="" className="bg-[#12151C] text-slate-400">General Branch</option>
                       {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((b) => (
-                        <option key={b} value={b} className="bg-[#12151C]">{b}</option>
+                        <option key={b} value={b} className="bg-[#12151C]">{getBranchFullName(b)}</option>
                       ))}
                     </select>
                   </div>
@@ -1803,7 +1819,7 @@ export default function ConfigurationTab({
                       >
                         <option value="all">🔍 View All Departments</option>
                         {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((dept) => (
-                          <option key={dept} value={dept}>{dept}</option>
+                          <option key={dept} value={dept}>{getBranchFullName(dept)}</option>
                         ))}
                       </select>
                     </div>
@@ -1836,7 +1852,7 @@ export default function ConfigurationTab({
                             <div>{invig.name}</div>
                             {invig.email && <div className="text-[10px] text-slate-500 font-normal mt-0.5">{invig.email}</div>}
                           </td>
-                          <td className="px-4 py-2.5 text-slate-400">{invig.department}</td>
+                          <td className="px-4 py-2.5 text-slate-400">{getBranchFullName(invig.department)}</td>
                           <td className="px-4 py-2.5 font-medium text-slate-300">{invig.maxWorkload} assignments</td>
                           <td className="px-4 py-2.5 max-w-xs truncate text-[11px]" title={invig.availability.map((av) => getTimeslotExact(av, examStartDate)).join(", ")}>
                             <div className="flex flex-wrap gap-1">
