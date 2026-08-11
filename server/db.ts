@@ -279,15 +279,9 @@ export async function initDatabase(): Promise<void> {
       .run('State Institute of Technology', '2026-06-15');
   }
 
-  // Seed default branches if empty or contains old defaults
+  // Seed default branches if empty
   const branchCount = db.prepare('SELECT COUNT(*) as count FROM branches').get() as { count: number };
-  const hasOldBranch = db.prepare("SELECT COUNT(*) as count FROM branches WHERE name = 'Computer Science' OR name = 'Computer Science & Eng'").get() as { count: number };
-  
-  if (branchCount.count === 0 || hasOldBranch.count > 0) {
-    try {
-      db.prepare('DELETE FROM branches').run();
-    } catch (e) {}
-    
+  if (branchCount.count === 0) {
     const defaultBranches = [
       'CSE',
       'CSE-AIDS',
@@ -305,6 +299,40 @@ export async function initDatabase(): Promise<void> {
         insertBranch.run(b);
       }
     })();
+  }
+  
+  // Auto-migrate branches table to new list if old list is found
+  try {
+    const checkOld = db.prepare("SELECT COUNT(*) as count FROM branches WHERE name LIKE '%Computer Science%'").get() as { count: number };
+    if (checkOld.count > 0) {
+      db.transaction(() => {
+        db.prepare("DELETE FROM branches").run();
+        const newBranches = [
+          'CSE',
+          'CSE-AIDS',
+          'CSE-AIML',
+          'IT',
+          'MECH',
+          'CIVIL',
+          'CSE-CYBER',
+          'EEE',
+          'ECE'
+        ];
+        const insertBranch = db.prepare('INSERT INTO branches (name) VALUES (?)');
+        for (const b of newBranches) {
+          insertBranch.run(b);
+        }
+        // Also update any existing courses that were using the old branch names to the new branch codes!
+        db.prepare("UPDATE courses SET branch = 'CSE' WHERE branch LIKE '%Computer Science%'").run();
+        db.prepare("UPDATE courses SET branch = 'EEE' WHERE branch LIKE '%Electrical%'").run();
+        db.prepare("UPDATE courses SET branch = 'MECH' WHERE branch LIKE '%Mechanical%'").run();
+        db.prepare("UPDATE courses SET branch = 'CIVIL' WHERE branch LIKE '%Civil%'").run();
+        db.prepare("UPDATE courses SET branch = 'ECE' WHERE branch LIKE '%Business%'").run();
+      })();
+      console.log("[Database] Branches table migrated successfully to CSE/ECE/IT list");
+    }
+  } catch (err) {
+    console.error("Migration error for branches list:", err);
   }
 }
 

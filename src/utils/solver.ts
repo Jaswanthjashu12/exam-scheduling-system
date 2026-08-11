@@ -282,14 +282,14 @@ export function getSeatingRiskCount(
  */
 export function generateDefaultDataset() {
   const courses: Course[] = [
-    { id: "CS-101", name: "Introduction to Computer Science", duration: 120, priority: "High", branch: "Computer Science & Eng" },
-    { id: "MATH-201", name: "Differential Calculus", duration: 180, priority: "High", branch: "Computer Science & Eng" },
-    { id: "PHY-110", name: "Physics: Optics & Electromagnetism", duration: 120, priority: "Medium", branch: "Electrical & Electronics" },
-    { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "Business & Humanities" },
-    { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "Business & Humanities" },
-    { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "Business & Humanities" },
-    { id: "23IT301", name: "Information Technology", duration: 120, priority: "High", branch: "Computer Science & Eng" },
-    { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "Mechanical Engineering" },
+    { id: "CS-101", name: "Introduction to Computer Science", duration: 120, priority: "High", branch: "CSE" },
+    { id: "MATH-201", name: "Differential Calculus", duration: 180, priority: "High", branch: "CSE" },
+    { id: "PHY-110", name: "Physics: Optics & Electromagnetism", duration: 120, priority: "Medium", branch: "EEE" },
+    { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "ECE" },
+    { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "ECE" },
+    { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "ECE" },
+    { id: "23IT301", name: "Information Technology", duration: 120, priority: "High", branch: "CSE" },
+    { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "MECH" },
   ];
 
   const rooms: Room[] = [
@@ -1009,12 +1009,12 @@ export function runOptimization(
  */
 export function generateSimpleDataset() {
   const courses: Course[] = [
-    { id: "MATH-101", name: "Basic Mathematics", duration: 90, priority: "High", branch: "Computer Science & Eng" },
-    { id: "ENG-101", name: "English Composition", duration: 90, priority: "Medium", branch: "Business & Humanities" },
-    { id: "SCI-101", name: "General Science", duration: 120, priority: "Low", branch: "Electrical & Electronics" },
-    { id: "HIST-101", name: "World History", duration: 90, priority: "Medium", branch: "Business & Humanities" },
-    { id: "CS-101", name: "Introduction to Computing", duration: 120, priority: "High", branch: "Computer Science & Eng" },
-    { id: "PHY-101", name: "Applied Physics", duration: 120, priority: "Medium", branch: "Electrical & Electronics" },
+    { id: "MATH-101", name: "Basic Mathematics", duration: 90, priority: "High", branch: "CSE" },
+    { id: "ENG-101", name: "English Composition", duration: 90, priority: "Medium", branch: "ECE" },
+    { id: "SCI-101", name: "General Science", duration: 120, priority: "Low", branch: "EEE" },
+    { id: "HIST-101", name: "World History", duration: 90, priority: "Medium", branch: "ECE" },
+    { id: "CS-101", name: "Introduction to Computing", duration: 120, priority: "High", branch: "CSE" },
+    { id: "PHY-101", name: "Applied Physics", duration: 120, priority: "Medium", branch: "EEE" },
   ];
 
   const rooms: Room[] = [
