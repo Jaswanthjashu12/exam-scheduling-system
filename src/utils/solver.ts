@@ -82,8 +82,23 @@ export function getTimeslotExact(slotId: string | undefined, startDateStr: strin
   const dayIndex = parseInt(parts[1]) || 1;
   const period = parts[2] || "";
   
-  const ts = DEFAULT_TIMESLOTS.find((t) => t.id === slotId);
-  const timeLabel = ts ? ts.timeLabel : (period === "Morning" ? "09:00 - 11:00" : period === "Afternoon" ? "13:00 - 15:00" : "16:30 - 18:30");
+  let timeLabel = "";
+  try {
+    const savedCustom = typeof window !== 'undefined' ? window.localStorage.getItem("exam_scheduler_custom_timeslot_labels") : null;
+    if (savedCustom) {
+      const mapping = JSON.parse(savedCustom);
+      if (mapping[slotId]) {
+        timeLabel = mapping[slotId];
+      }
+    }
+  } catch (e) {
+    console.error("Error reading custom timeslot labels:", e);
+  }
+
+  if (!timeLabel) {
+    const ts = DEFAULT_TIMESLOTS.find((t) => t.id === slotId);
+    timeLabel = ts ? ts.timeLabel : (period === "Morning" ? "09:00 - 11:00" : period === "Afternoon" ? "13:00 - 15:00" : "16:30 - 18:30");
+  }
 
   try {
     const baseDate = new Date(startDateStr);

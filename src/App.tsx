@@ -115,6 +115,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [customTimeLabels, setCustomTimeLabels] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem("exam_scheduler_custom_timeslot_labels");
+    return saved ? JSON.parse(saved) : {};
+  });
+
   // Fetch all data from API on mount
   useEffect(() => {
     async function loadData() {
@@ -675,6 +680,8 @@ export default function App() {
             examStartDate={examStartDate}
             setExamStartDate={setExamStartDate}
             collegeName={collegeName}
+            customTimeLabels={customTimeLabels}
+            setCustomTimeLabels={setCustomTimeLabels}
           />
         )}
 

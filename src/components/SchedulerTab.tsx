@@ -24,6 +24,8 @@ interface SchedulerTabProps {
   examStartDate?: string;
   setExamStartDate?: (date: string) => void;
   collegeName?: string;
+  customTimeLabels?: Record<string, string>;
+  setCustomTimeLabels?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
 export default function SchedulerTab({
@@ -41,6 +43,8 @@ export default function SchedulerTab({
   examStartDate = "2026-06-15",
   setExamStartDate,
   collegeName = "",
+  customTimeLabels = {},
+  setCustomTimeLabels,
 }: SchedulerTabProps) {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [iterations, setIterations] = useState(0);
@@ -914,10 +918,31 @@ export default function SchedulerTab({
                       );
                     })}
                   </div>
-                  {/* Show selected label */}
-                  <p className="text-[10px] text-indigo-400 font-semibold text-center pt-0.5">
-                    📅 {getTimeslotExact(newSlotId, examStartDate)}
-                  </p>
+                  {/* Show selected label & custom time input */}
+                  <div className="flex flex-col items-center gap-1.5 pt-1 border-t border-slate-800/40 mt-1">
+                    <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                      📅 {getTimeslotExact(newSlotId, examStartDate).split(", ").slice(0, 2).join(", ")}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">Time:</span>
+                      <input
+                        type="text"
+                        value={customTimeLabels[newSlotId] || (DEFAULT_TIMESLOTS.find(s => s.id === newSlotId)?.timeLabel || "09:00 - 11:00")}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (setCustomTimeLabels) {
+                            setCustomTimeLabels(prev => {
+                              const next = { ...prev, [newSlotId]: val };
+                              localStorage.setItem("exam_scheduler_custom_timeslot_labels", JSON.stringify(next));
+                              return next;
+                            });
+                          }
+                        }}
+                        className="px-2 py-0.5 bg-[#0D1017] border border-slate-700/80 rounded text-[9px] text-indigo-300 font-bold font-mono w-28 text-center focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-inner"
+                        placeholder="09:00 - 11:00"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1412,17 +1437,38 @@ export default function SchedulerTab({
               {/* Timeslot dropdown */}
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5">Change Timeslot Session</label>
-                <select
-                  value={moveSlotId}
-                  onChange={(e) => handleDropdownChange("slot", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#0A0C10] rounded-lg focus:outline-none text-slate-200 font-medium"
-                >
-                  {DEFAULT_TIMESLOTS.map((ts) => (
-                    <option key={ts.id} value={ts.id} className="bg-[#12151C] text-slate-200">
-                      {getTimeslotExact(ts.id, examStartDate)}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-col gap-2 bg-[#0A0C10] p-2.5 border border-slate-750 rounded-lg">
+                  <select
+                    value={moveSlotId}
+                    onChange={(e) => handleDropdownChange("slot", e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#0D1017] rounded-lg focus:outline-none text-slate-200 font-semibold cursor-pointer"
+                  >
+                    {DEFAULT_TIMESLOTS.map((ts) => (
+                      <option key={ts.id} value={ts.id} className="bg-[#12151C] text-slate-200">
+                        {getTimeslotExact(ts.id, examStartDate)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60 justify-between">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Customise Session Time:</span>
+                    <input
+                      type="text"
+                      value={customTimeLabels[moveSlotId] || (DEFAULT_TIMESLOTS.find(s => s.id === moveSlotId)?.timeLabel || "09:00 - 11:00")}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (setCustomTimeLabels) {
+                          setCustomTimeLabels(prev => {
+                            const next = { ...prev, [moveSlotId]: val };
+                            localStorage.setItem("exam_scheduler_custom_timeslot_labels", JSON.stringify(next));
+                            return next;
+                          });
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-[#0D1017] border border-slate-700/80 rounded-lg text-xs text-indigo-300 font-bold font-mono w-36 text-center focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-inner"
+                      placeholder="09:00 - 11:00"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Room dropdown / checkboxes */}
