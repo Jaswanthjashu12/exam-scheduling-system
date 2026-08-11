@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import { School, GraduationCap, Eye, EyeOff, LogIn, UserPlus, ShieldCheck, BookOpen } from "lucide-react";
+import { registerUser, loginUser } from "../api/client";
 
 interface LoginPageProps {
   onLogin: (collegeName: string, username: string) => void;
@@ -33,7 +34,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     localStorage.setItem("exam_scheduler_accounts", JSON.stringify(accounts));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -52,9 +53,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      const accounts = getAccounts();
 
+    try {
       if (mode === "register") {
         if (password !== confirmPassword) {
           setError("Passwords do not match.");
@@ -66,31 +66,29 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           setLoading(false);
           return;
         }
-        if (accounts[username.toLowerCase()]) {
-          setError(`Username "${username}" is already registered. Please log in instead.`);
-          setLoading(false);
-          return;
-        }
-        accounts[username.toLowerCase()] = { password, collegeName: collegeName.trim() };
-        saveAccounts(accounts);
+
+        await registerUser({
+          username,
+          password,
+          collegeName: collegeName.trim(),
+          adminCode: adminCode.trim()
+        });
+
         setSuccess("Account created successfully! Logging you in…");
         setTimeout(() => onLogin(collegeName.trim(), username), 1200);
       } else {
-        const account = accounts[username.toLowerCase()];
-        if (!account) {
-          setError("No account found with this username. Please register first.");
-          setLoading(false);
-          return;
-        }
-        if (account.password !== password) {
-          setError("Incorrect password. Please try again.");
-          setLoading(false);
-          return;
-        }
+        const res = await loginUser({
+          username,
+          password
+        });
+
         setSuccess("Login successful! Loading your dashboard…");
-        setTimeout(() => onLogin(account.collegeName, username), 1000);
+        setTimeout(() => onLogin(res.collegeName, res.username), 1000);
       }
-    }, 800);
+    } catch (err: any) {
+      setError(err.message || "An error occurred during authentication.");
+      setLoading(false);
+    }
   };
 
   return (

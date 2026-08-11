@@ -1,8 +1,9 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { initDatabase, db, getAllScheduleEntries, getEmailLogs, logEmail } from "./server/db";
+import { initDatabase, db, getAllScheduleEntries, getEmailLogs, logEmail, registerUser, getUserByUsername, getAllUsers } from "./server/db";
 import { buildConstraints } from "./server/services/constraintBuilder";
 import { validateProposal } from "./server/services/aiValidator";
 import coursesRouter from "./server/routes/courses";
@@ -64,6 +65,70 @@ async function startServer() {
   // API endpoints
   app.get("/api/health", (req, res) => {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
+  });
+
+  // Authentication endpoints
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password, collegeName, adminCode } = req.body;
+      if (!username || !password || !collegeName) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      if (adminCode !== "ADMIN2026") {
+        return res.status(400).json({ error: "Invalid admin registration key" });
+      }
+      const existing = await getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ error: "Username already registered" });
+      }
+      await registerUser(username, password, collegeName);
+      res.json({ success: true, message: "User registered successfully" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ error: "Missing username or password" });
+      }
+      const user = await getUserByUsername(username);
+      if (!user) {
+        return res.status(400).json({ error: "No account found with this username" });
+      }
+      if (user.password !== password) {
+        return res.status(400).json({ error: "Incorrect password" });
+      }
+      res.json({ success: true, username: user.username, collegeName: user.collegeName });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/auth/users", async (req, res) => {
+    try {
+      const usersList = await getAllUsers();
+      res.json(usersList);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Database Export Endpoint
+  app.get("/api/db/download", (req, res) => {
+    try {
+      const dbPath = path.resolve(process.cwd(), "data", "exam_scheduler.db");
+      if (fs.existsSync(dbPath)) {
+        res.setHeader("Content-Disposition", "attachment; filename=exam_scheduler.db");
+        res.download(dbPath, "exam_scheduler.db");
+      } else {
+        res.status(404).json({ error: "Database file not found" });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Lazy Gemini API wrapper to suggest optimizations based on current schedules and conflicts

@@ -162,6 +162,13 @@ export async function initDatabase(): Promise<void> {
       timestamp TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      username TEXT PRIMARY KEY,
+      password TEXT NOT NULL,
+      college_name TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Performance indexes for frequent lookups and JOINs
     CREATE INDEX IF NOT EXISTS idx_student_courses_student ON student_courses(student_id);
     CREATE INDEX IF NOT EXISTS idx_student_courses_course ON student_courses(course_id);
@@ -794,6 +801,42 @@ export async function getEmailLogs(): Promise<any[]> {
     }));
   } catch (err) {
     console.error('[SQLite] Failed to query email logs:', err);
+    return [];
+  }
+}
+
+// ==========================================
+// USER ACCOUNTS
+// ==========================================
+
+export async function registerUser(username: string, passwordPlain: string, collegeName: string): Promise<void> {
+  const usernameLower = username.toLowerCase().trim();
+  db.prepare('INSERT INTO users (username, password, college_name) VALUES (?, ?, ?)')
+    .run(usernameLower, passwordPlain, collegeName.trim());
+}
+
+export async function getUserByUsername(username: string): Promise<any> {
+  const usernameLower = username.toLowerCase().trim();
+  const row = db.prepare('SELECT * FROM users WHERE username = ?').get(usernameLower) as any;
+  if (!row) return null;
+  return {
+    username: row.username,
+    password: row.password,
+    collegeName: row.college_name,
+    createdAt: row.created_at
+  };
+}
+
+export async function getAllUsers(): Promise<any[]> {
+  try {
+    const rows = db.prepare('SELECT username, college_name, created_at FROM users ORDER BY created_at DESC').all() as any[];
+    return rows.map(r => ({
+      username: r.username,
+      collegeName: r.college_name,
+      createdAt: r.created_at
+    }));
+  } catch (err) {
+    console.error('[SQLite] Failed to fetch users:', err);
     return [];
   }
 }

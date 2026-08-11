@@ -75,6 +75,18 @@ export default function ConfigurationTab({
   const [courseFilterBranch, setCourseFilterBranch] = useState("all");
   const [courseFilterYear, setCourseFilterYear] = useState<string>("all");
   const [invigilatorFilterDept, setInvigilatorFilterDept] = useState<string>("all");
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/auth/users")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setRegisteredUsers(data);
+        }
+      })
+      .catch(err => console.error("Failed to load registered users:", err));
+  }, []);
 
   // New academic branch inputs
   const [newBranchInput, setNewBranchInput] = useState("");
@@ -827,6 +839,73 @@ export default function ConfigurationTab({
               </button>
             </form>
           </div>
+        </div>
+      </div>
+
+      {/* Registered Users & DB Export Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Registered Users list */}
+        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-8 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Registered Administrators / Users ({registeredUsers.length})</h2>
+            </div>
+            <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded px-1.5 py-0.5 font-bold uppercase">Database Accounts</span>
+          </div>
+
+          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#0A0C10] text-slate-400 font-medium text-[10px] border-b border-slate-800 uppercase tracking-wider">
+                  <th className="px-4 py-2.5">Username</th>
+                  <th className="px-4 py-2.5">Institution / College</th>
+                  <th className="px-4 py-2.5">Registered At</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/40 text-[11px] text-slate-300">
+                {registeredUsers.map((user) => (
+                  <tr key={user.username} className="hover:bg-slate-800/10">
+                    <td className="px-4 py-2 font-mono font-semibold text-white">{user.username}</td>
+                    <td className="px-4 py-2 text-slate-200">{user.collegeName}</td>
+                    <td className="px-4 py-2 text-slate-400">{user.createdAt ? new Date(user.createdAt).toLocaleString() : "Pre-seeded"}</td>
+                  </tr>
+                ))}
+                {registeredUsers.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                      No administrators registered yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: Database Export & Backup actions */}
+        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-4 space-y-4 shadow-xl flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <Download className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Database Backup & Export</h2>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Export and download a copy of your live SQLite database file. This contains all courses, students, rooms, invigilators, and schedule entries registered on this Render instance.
+            </p>
+            <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-[10px] text-slate-400 space-y-1">
+              <p>💡 **File format**: `.db` (SQLite3)</p>
+              <p>💡 **Usage**: Open in [sqliteonline.com](https://sqliteonline.com/) or DBeaver to view/edit raw tables.</p>
+            </div>
+          </div>
+
+          <a
+            href="/api/db/download"
+            download
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
+          >
+            <Download className="w-4 h-4" /> Download SQLite Database
+          </a>
         </div>
       </div>
 

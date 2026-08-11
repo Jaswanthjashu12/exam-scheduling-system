@@ -121,6 +121,13 @@ try {
       FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      username TEXT PRIMARY KEY,
+      password TEXT NOT NULL,
+      college_name TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_student_courses_student ON student_courses(student_id);
     CREATE INDEX IF NOT EXISTS idx_student_courses_course ON student_courses(course_id);
     CREATE INDEX IF NOT EXISTS idx_student_accoms_student ON student_accommodations(student_id);
@@ -177,11 +184,15 @@ try {
     DELETE FROM courses;
     DELETE FROM branches;
     DELETE FROM colleges;
+    DELETE FROM users;
   `);
 
-  console.log('Seeding default college & branches...');
+  console.log('Seeding default college, branches & default user...');
   db.prepare('INSERT INTO colleges (id, name, exam_start_date) VALUES (1, ?, ?)')
     .run('State Institute of Technology', '2026-06-15');
+
+  db.prepare('INSERT INTO users (username, password, college_name) VALUES (?, ?, ?)')
+    .run('admin', 'admin123', 'State Institute of Technology');
 
   const defaultBranches = [
     'CSE',
