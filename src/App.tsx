@@ -39,7 +39,8 @@ import {
   ShieldCheck,
   Eye,
   Settings,
-  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
   Menu
 } from "lucide-react";
 
@@ -402,10 +403,10 @@ export default function App() {
                   setSidebarCollapsed(true);
                   localStorage.setItem("exam_scheduler_sidebar_collapsed", "true");
                 }}
-                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-450 hover:text-white cursor-pointer transition shrink-0 ml-1"
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-450 hover:text-white cursor-pointer transition shrink-0 ml-1 border border-slate-800/40 bg-slate-900/10 shadow-sm"
                 title="Collapse Sidebar"
               >
-                <MoreVertical className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
           ) : (
@@ -425,10 +426,10 @@ export default function App() {
                   setSidebarCollapsed(false);
                   localStorage.setItem("exam_scheduler_sidebar_collapsed", "false");
                 }}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-450 hover:text-white cursor-pointer transition"
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-455 hover:text-white cursor-pointer transition border border-slate-800/40 bg-slate-900/10 shadow-sm"
                 title="Expand Sidebar"
               >
-                <MoreVertical className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
