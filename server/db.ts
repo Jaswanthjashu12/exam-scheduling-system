@@ -809,15 +809,13 @@ export async function getEmailLogs(): Promise<any[]> {
 // USER ACCOUNTS
 // ==========================================
 
-export async function registerUser(username: string, passwordPlain: string, collegeName: string): Promise<void> {
-  const usernameLower = username.toLowerCase().trim();
+export async function registerUser(username: string, password: string, collegeName: string): Promise<void> {
   db.prepare('INSERT INTO users (username, password, college_name) VALUES (?, ?, ?)')
-    .run(usernameLower, passwordPlain, collegeName.trim());
+    .run(username.toLowerCase(), password, collegeName);
 }
 
 export async function getUserByUsername(username: string): Promise<any> {
-  const usernameLower = username.toLowerCase().trim();
-  const row = db.prepare('SELECT * FROM users WHERE username = ?').get(usernameLower) as any;
+  const row = db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase()) as any;
   if (!row) return null;
   return {
     username: row.username,
@@ -836,7 +834,7 @@ export async function getAllUsers(): Promise<any[]> {
       createdAt: r.created_at
     }));
   } catch (err) {
-    console.error('[SQLite] Failed to fetch users:', err);
+    console.error('[SQLite] Failed to query users list:', err);
     return [];
   }
 }

@@ -6,7 +6,8 @@
 import React, { useState, useEffect } from "react";
 import { Course, Room, Student, Invigilator, AccommodationType } from "../types";
 import { getCourseEnrollment, getTimeslotExact, DEFAULT_TIMESLOTS } from "../utils/solver";
-import { Plus, Trash, Edit2, GraduationCap, School, Users, Key, Briefcase, FileText, Check, AlertCircle, Info, Sparkles, X, Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Trash, Edit2, GraduationCap, School, Users, Key, Briefcase, FileText, Check, AlertCircle, Info, Sparkles, X, Upload, Download, FileSpreadsheet, Loader2, CheckCircle2, XCircle, Database } from "lucide-react";
+import * as api from "../api/client";
 
 interface ConfigurationTabProps {
   courses: Course[];
@@ -65,6 +66,14 @@ export default function ConfigurationTab({
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editingInvigId, setEditingInvigId] = useState<string | null>(null);
 
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+  
+  useEffect(() => {
+    api.fetchRegisteredUsers()
+      .then(setRegisteredUsers)
+      .catch(console.error);
+  }, []);
+
   // New course input state
   const [newCourseId, setNewCourseId] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
@@ -75,18 +84,6 @@ export default function ConfigurationTab({
   const [courseFilterBranch, setCourseFilterBranch] = useState("all");
   const [courseFilterYear, setCourseFilterYear] = useState<string>("all");
   const [invigilatorFilterDept, setInvigilatorFilterDept] = useState<string>("all");
-  const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetch("/api/auth/users")
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setRegisteredUsers(data);
-        }
-      })
-      .catch(err => console.error("Failed to load registered users:", err));
-  }, []);
 
   // New academic branch inputs
   const [newBranchInput, setNewBranchInput] = useState("");
@@ -842,70 +839,75 @@ export default function ConfigurationTab({
         </div>
       </div>
 
-      {/* Registered Users & DB Export Panel */}
+      {/* Founder Admin Panel & Export Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Registered Users list */}
-        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-8 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        {/* Left: SQLite Database Download */}
+        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-5 space-y-4 shadow-xl flex flex-col justify-between min-h-[190px]">
+          <div>
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <Database className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Database Operations</h2>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+              As the founder and administrator of this project, you can download a full backup copy of the SQLite database. This backup file contains all courses, students, rooms, proctors, and schedule records.
+            </p>
+          </div>
+          <div className="pt-2">
+            <a
+              href="/api/db/download"
+              download
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
+            >
+              <Download className="w-4 h-4" /> Download SQLite Database File
+            </a>
+          </div>
+        </div>
+
+        {/* Right: Registered Users list */}
+        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-7 space-y-4 shadow-xl">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3 justify-between">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Registered Administrators / Users ({registeredUsers.length})</h2>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Registered Administrators ({registeredUsers.length})</h2>
             </div>
-            <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded px-1.5 py-0.5 font-bold uppercase">Database Accounts</span>
+            <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded px-1.5 py-0.5 font-bold uppercase">System Access</span>
           </div>
 
-          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
+          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20 max-h-[128px] overflow-y-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#0A0C10] text-slate-400 font-medium text-[10px] border-b border-slate-800 uppercase tracking-wider">
+                <tr className="bg-[#0A0C10] text-slate-400 font-medium text-xs border-b border-slate-800">
                   <th className="px-4 py-2.5">Username</th>
                   <th className="px-4 py-2.5">Institution / College</th>
-                  <th className="px-4 py-2.5">Registered At</th>
+                  <th className="px-4 py-2.5 text-right font-normal">Registration Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/40 text-[11px] text-slate-300">
                 {registeredUsers.map((user) => (
                   <tr key={user.username} className="hover:bg-slate-800/10">
-                    <td className="px-4 py-2 font-mono font-semibold text-white">{user.username}</td>
-                    <td className="px-4 py-2 text-slate-200">{user.collegeName}</td>
-                    <td className="px-4 py-2 text-slate-400">{user.createdAt ? new Date(user.createdAt).toLocaleString() : "Pre-seeded"}</td>
+                    <td className="px-4 py-2 font-mono font-bold text-white">{user.username}</td>
+                    <td className="px-4 py-2 text-slate-350">{user.collegeName}</td>
+                    <td className="px-4 py-2 text-slate-400 text-right">
+                      {user.createdAt ? new Date(user.createdAt).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : 'N/A'}
+                    </td>
                   </tr>
                 ))}
                 {registeredUsers.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
-                      No administrators registered yet.
+                      No user accounts found on the server.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </div>
-
-        {/* Right: Database Export & Backup actions */}
-        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-4 space-y-4 shadow-xl flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Download className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Database Backup & Export</h2>
-            </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Export and download a copy of your live SQLite database file. This contains all courses, students, rooms, invigilators, and schedule entries registered on this Render instance.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-[10px] text-slate-400 space-y-1">
-              <p>💡 **File format**: `.db` (SQLite3)</p>
-              <p>💡 **Usage**: Open in [sqliteonline.com](https://sqliteonline.com/) or DBeaver to view/edit raw tables.</p>
-            </div>
-          </div>
-
-          <a
-            href="/api/db/download"
-            download
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
-          >
-            <Download className="w-4 h-4" /> Download SQLite Database
-          </a>
         </div>
       </div>
 

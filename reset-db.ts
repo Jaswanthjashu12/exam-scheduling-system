@@ -187,7 +187,7 @@ try {
     DELETE FROM users;
   `);
 
-  console.log('Seeding default college, branches & default user...');
+  console.log('Seeding default college, branches & default admin user...');
   db.prepare('INSERT INTO colleges (id, name, exam_start_date) VALUES (1, ?, ?)')
     .run('State Institute of Technology', '2026-06-15');
 

@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { School, GraduationCap, Eye, EyeOff, LogIn, UserPlus, ShieldCheck, BookOpen } from "lucide-react";
-import { registerUser, loginUser } from "../api/client";
+import * as api from "../api/client";
 
 interface LoginPageProps {
   onLogin: (collegeName: string, username: string) => void;
@@ -67,23 +67,33 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           return;
         }
 
-        await registerUser({
-          username,
+        const res = await api.registerUser({
+          username: username.trim(),
           password,
           collegeName: collegeName.trim(),
           adminCode: adminCode.trim()
         });
 
-        setSuccess("Account created successfully! Logging you in…");
-        setTimeout(() => onLogin(collegeName.trim(), username), 1200);
+        if (res.success) {
+          setSuccess("Account created successfully! Logging you in…");
+          setTimeout(() => onLogin(res.collegeName, res.username), 1200);
+        } else {
+          setError("Registration failed.");
+          setLoading(false);
+        }
       } else {
-        const res = await loginUser({
-          username,
+        const res = await api.loginUser({
+          username: username.trim(),
           password
         });
 
-        setSuccess("Login successful! Loading your dashboard…");
-        setTimeout(() => onLogin(res.collegeName, res.username), 1000);
+        if (res.success) {
+          setSuccess("Login successful! Loading your dashboard…");
+          setTimeout(() => onLogin(res.collegeName, res.username), 1000);
+        } else {
+          setError("Authentication failed.");
+          setLoading(false);
+        }
       }
     } catch (err: any) {
       setError(err.message || "An error occurred during authentication.");

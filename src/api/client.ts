@@ -443,19 +443,20 @@ export async function fetchEmailLogs(): Promise<any[]> {
 }
 
 // ==========================================
-// USER ACCOUNTS
+// USER ACCOUNTS & SECURITY
 // ==========================================
-export async function registerUser(payload: any): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE}/api/auth/register`, {
+
+export async function loginUser(payload: any): Promise<{ success: boolean; username: string; collegeName: string }> {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return handleResponse<{ success: boolean; message: string }>(res);
+  return handleResponse<{ success: boolean; username: string; collegeName: string }>(res);
 }
 
-export async function loginUser(payload: any): Promise<{ success: boolean; username: string; collegeName: string }> {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
+export async function registerUser(payload: any): Promise<{ success: boolean; username: string; collegeName: string }> {
+  const res = await fetch(`${API_BASE}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
