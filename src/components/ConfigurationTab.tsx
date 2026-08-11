@@ -838,78 +838,79 @@ export default function ConfigurationTab({
           </div>
         </div>
       </div>
-
-      {/* Founder Admin Panel & Export Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: SQLite Database Download */}
-        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-5 space-y-4 shadow-xl flex flex-col justify-between min-h-[190px]">
-          <div>
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Database className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Database Operations</h2>
+      {/* Founder Admin Panel & Export Section - Restricted to master admin 'admin' */}
+      {(localStorage.getItem("exam_scheduler_logged_user") || "").toLowerCase() === "admin" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: SQLite Database Download */}
+          <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-5 space-y-4 shadow-xl flex flex-col justify-between min-h-[190px]">
+            <div>
+              <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                <Database className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Database Operations</h2>
+              </div>
+              <p className="text-[11px] text-slate-404 text-slate-400 mt-3 leading-relaxed">
+                As the founder and administrator of this project, you can download a full backup copy of the SQLite database. This backup file contains all courses, students, rooms, proctors, and schedule records.
+              </p>
             </div>
-            <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
-              As the founder and administrator of this project, you can download a full backup copy of the SQLite database. This backup file contains all courses, students, rooms, proctors, and schedule records.
-            </p>
+            <div className="pt-2">
+              <a
+                href="/api/db/download"
+                download
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
+              >
+                <Download className="w-4 h-4" /> Download SQLite Database File
+              </a>
+            </div>
           </div>
-          <div className="pt-2">
-            <a
-              href="/api/db/download"
-              download
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
-            >
-              <Download className="w-4 h-4" /> Download SQLite Database File
-            </a>
+
+          {/* Right: Registered Users list */}
+          <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-7 space-y-4 shadow-xl">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3 justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-400" />
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Registered Administrators ({registeredUsers.length})</h2>
+              </div>
+              <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded px-1.5 py-0.5 font-bold uppercase">System Access</span>
+            </div>
+
+            <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20 max-h-[128px] overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#0A0C10] text-slate-404 text-slate-400 font-medium text-xs border-b border-slate-800">
+                    <th className="px-4 py-2.5">Username</th>
+                    <th className="px-4 py-2.5">Institution / College</th>
+                    <th className="px-4 py-2.5 text-right font-normal">Registration Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40 text-[11px] text-slate-300">
+                  {registeredUsers.map((user) => (
+                    <tr key={user.username} className="hover:bg-slate-800/10">
+                      <td className="px-4 py-2 font-mono font-bold text-white">{user.username}</td>
+                      <td className="px-4 py-2 text-slate-350">{user.collegeName}</td>
+                      <td className="px-4 py-2 text-slate-400 text-right">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : 'N/A'}
+                      </td>
+                    </tr>
+                  ))}
+                  {registeredUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                        No user accounts found on the server.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-
-        {/* Right: Registered Users list */}
-        <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-7 space-y-4 shadow-xl">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3 justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Registered Administrators ({registeredUsers.length})</h2>
-            </div>
-            <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded px-1.5 py-0.5 font-bold uppercase">System Access</span>
-          </div>
-
-          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20 max-h-[128px] overflow-y-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#0A0C10] text-slate-400 font-medium text-xs border-b border-slate-800">
-                  <th className="px-4 py-2.5">Username</th>
-                  <th className="px-4 py-2.5">Institution / College</th>
-                  <th className="px-4 py-2.5 text-right font-normal">Registration Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/40 text-[11px] text-slate-300">
-                {registeredUsers.map((user) => (
-                  <tr key={user.username} className="hover:bg-slate-800/10">
-                    <td className="px-4 py-2 font-mono font-bold text-white">{user.username}</td>
-                    <td className="px-4 py-2 text-slate-350">{user.collegeName}</td>
-                    <td className="px-4 py-2 text-slate-400 text-right">
-                      {user.createdAt ? new Date(user.createdAt).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : 'N/A'}
-                    </td>
-                  </tr>
-                ))}
-                {registeredUsers.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
-                      No user accounts found on the server.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Main Tabs Navigation */}
       <div className="bg-[#12151C] rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
