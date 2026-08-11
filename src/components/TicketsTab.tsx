@@ -3,11 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Course, Room, Student, ScheduleEntry } from "../types";
 import { getBranchFullName } from "./ConfigurationTab";
 import { getTimeslotExact } from "../utils/solver";
-import { Printer, Search, Filter, CheckSquare, Square, UserCheck, BookOpen, MapPin, Calendar, Hash, Check } from "lucide-react";
+import * as XLSX from "xlsx";
+import {
+  Printer,
+  Search,
+  Filter,
+  CheckSquare,
+  Square,
+  UserCheck,
+  BookOpen,
+  MapPin,
+  Calendar,
+  Hash,
+  Upload,
+  Download,
+  School,
+  Image as ImageIcon,
+  Check,
+  RefreshCw,
+  HelpCircle,
+  FileSpreadsheet,
+  Sliders
+} from "lucide-react";
 
 interface TicketsTabProps {
   courses: Course[];
@@ -18,6 +39,20 @@ interface TicketsTabProps {
   collegeName?: string;
 }
 
+interface ExcelStudent {
+  id: string;
+  name: string;
+  branch: string;
+  year: string;
+  exams: {
+    courseId: string;
+    courseName: string;
+    dateTime: string;
+    roomName: string;
+    seatText: string;
+  }[];
+}
+
 export default function TicketsTab({
   courses,
   rooms,
@@ -26,86 +61,277 @@ export default function TicketsTab({
   examStartDate = "2026-06-15",
   collegeName = "GMR Institute of Technology"
 }: TicketsTabProps) {
+  const [dataSource, setDataSource] = useState<"db" | "excel">("db");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [selectedYear, setSelectedYear] = useState("all");
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
 
-  // Unique branches from students list
-  const studentBranches = useMemo(() => {
-    const set = new Set<string>();
-    students.forEach(s => {
-      // Find their first course branch or default to CSE
-      const firstCourseId = s.courses[0];
-      const course = courses.find(c => c.id === firstCourseId);
-      if (course?.branch) set.add(course.branch);
+  // Excel parsed data state
+  const [excelStudents, setExcelStudents] = useState<ExcelStudent[]>([]);
+  const [excelFileName, setExcelFileName] = useState("");
+  const [isParsingExcel, setIsParsingExcel] = useState(false);
+  const [excelError, setExcelError] = useState("");
+
+  // Customization States
+  const [customCollegeName, setCustomCollegeName] = useState(collegeName);
+  const [collegeLogoUrl, setCollegeLogoUrl] = useState<string | null>(null);
+  const [controllerSigUrl, setControllerSigUrl] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const sigInputRef = useRef<HTMLInputElement>(null);
+
+  // Group Excel Rows by Student ID
+  const groupExcelData = (rows: any[]): ExcelStudent[] => {
+    const studentsMap: Record<string, ExcelStudent> = {};
+
+    rows.forEach(row => {
+      const getVal = (keys: string[]) => {
+        for (const k of keys) {
+          const foundKey = Object.keys(row).find(
+            rk => rk.toLowerCase().replace(/[\s_-]/g, "") === k.toLowerCase()
+          );
+          if (foundKey && row[foundKey] !== undefined) return row[foundKey];
+        }
+        return "";
+      };
+
+      const id = getVal(["registernumber", "studentid", "regno", "rollno", "id"]).toString().trim();
+      const name = getVal(["candidatename", "studentname", "name"]).toString().trim();
+      const branch = getVal(["branch", "department", "degree", "dept"]).toString().trim();
+      const year = getVal(["year", "semester", "sem"]).toString().trim();
+
+      const courseId = getVal(["coursecode", "subjectcode", "code"]).toString().trim();
+      const courseName = getVal(["coursename", "subjectname", "subject", "course"]).toString().trim();
+      const dateTime = getVal(["datesession", "date", "time", "datetime", "slot"]).toString().trim();
+      const roomName = getVal(["examhall", "room", "hall", "classroom"]).toString().trim();
+      const seatText = getVal(["seatnumber", "seat", "seatno"]).toString().trim();
+
+      if (!id) return; // skip empty rows
+
+      if (!studentsMap[id]) {
+        studentsMap[id] = {
+          id,
+          name: name || `Student ${id}`,
+          branch: branch || "CSE",
+          year: year || "1",
+          exams: []
+        };
+      }
+
+      if (courseId || courseName) {
+        studentsMap[id].exams.push({
+          courseId: courseId || "EXAM",
+          courseName: courseName || "Scheduled Exam",
+          dateTime: dateTime || "TBD",
+          roomName: roomName || "Main Hall",
+          seatText: seatText || "Auto-Allocated"
+        });
+      }
     });
+
+    return Object.values(studentsMap);
+  };
+
+  // Excel File upload handler
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelFileName(file.name);
+    setIsParsingExcel(true);
+    setExcelError("");
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonRows.length === 0) {
+          throw new Error("The Excel sheet is empty.");
+        }
+
+        const grouped = groupExcelData(jsonRows);
+        setExcelStudents(grouped);
+        setDataSource("excel");
+        setSelectedStudentIds(new Set()); // Clear selection
+      } catch (err: any) {
+        setExcelError(err.message || "Failed to parse the Excel file.");
+      } finally {
+        setIsParsingExcel(false);
+      }
+    };
+    reader.onerror = () => {
+      setExcelError("File reading failed.");
+      setIsParsingExcel(false);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Image Upload Handlers
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string | null) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      setter(evt.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Download Sample Excel Template
+  const downloadTemplate = () => {
+    const headers = [
+      {
+        "Register Number": "STU-001",
+        "Candidate Name": "John Doe",
+        "Branch": "CSE",
+        "Academic Year": "3",
+        "Course Code": "CS-301",
+        "Course Name": "Database Systems",
+        "Date & Session": "Day-1-Morning (09:30 AM - 12:30 PM)",
+        "Exam Hall": "RM-101 (Science Block A)",
+        "Seat Number": "Row 1, Col 4"
+      },
+      {
+        "Register Number": "STU-001",
+        "Candidate Name": "John Doe",
+        "Branch": "CSE",
+        "Academic Year": "3",
+        "Course Code": "CS-302",
+        "Course Name": "Web Development",
+        "Date & Session": "Day-2-Afternoon (01:30 PM - 04:30 PM)",
+        "Exam Hall": "RM-204 (Turing Plaza)",
+        "Seat Number": "Row 3, Col 2"
+      },
+      {
+        "Register Number": "STU-002",
+        "Candidate Name": "Sarah Smith",
+        "Branch": "ECE",
+        "Academic Year": "2",
+        "Course Code": "EC-201",
+        "Course Name": "Digital Electronics",
+        "Date & Session": "Day-1-Evening (05:00 PM - 08:00 PM)",
+        "Exam Hall": "RM-305 (Liberal Arts)",
+        "Seat Number": "Row 2, Col 5"
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(headers);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Hall Tickets Template");
+    XLSX.writeFile(workbook, "hall_tickets_template.xlsx");
+  };
+
+  // Unique branches list
+  const branchesList = useMemo(() => {
+    const set = new Set<string>();
+    if (dataSource === "db") {
+      students.forEach(s => {
+        const firstCourseId = s.courses[0];
+        const course = courses.find(c => c.id === firstCourseId);
+        if (course?.branch) set.add(course.branch);
+      });
+    } else {
+      excelStudents.forEach(s => {
+        if (s.branch) set.add(s.branch);
+      });
+    }
     return Array.from(set);
-  }, [students, courses]);
+  }, [dataSource, students, courses, excelStudents]);
 
-  // Helper: Find all exams a student has scheduled
-  const studentExams = useMemo(() => {
-    const map: Record<string, { entry: ScheduleEntry; course: Course; room?: Room; seatText: string }[]> = {};
+  // Student Exams mapping
+  const studentExamsMap = useMemo(() => {
+    const map: Record<string, { courseId: string; courseName: string; dateTimeText: string; roomName: string; seatText: string }[]> = {};
 
-    students.forEach(student => {
-      const exams: typeof map[string] = [];
-      student.courses.forEach(courseId => {
-        // Find if this course has a schedule entry
-        const entry = entries.find(e => e.courseId === courseId);
-        if (entry) {
-          const course = courses.find(c => c.id === courseId);
-          if (course) {
-            const room = rooms.find(r => r.id === entry.roomId);
-            
-            // Look up custom seating seat coordinates
-            let seatText = "Auto-Allocated";
-            try {
-              const savedSeating = localStorage.getItem("exam_scheduler_custom_seating");
-              if (savedSeating) {
-                const seatingData = JSON.parse(savedSeating);
-                const seatKey = `${entry.timeslotId}_${entry.roomId}`;
-                const arrangement = seatingData[seatKey];
-                if (arrangement && Array.isArray(arrangement)) {
-                  const idx = arrangement.indexOf(student.id);
-                  if (idx !== -1) {
-                    const gridSaved = localStorage.getItem("exam_scheduler_grid_configs");
-                    let numCols = 6;
-                    if (gridSaved) {
-                      const gridData = JSON.parse(gridSaved);
-                      if (gridData[seatKey] && gridData[seatKey].numCols) {
-                        numCols = gridData[seatKey].numCols;
+    if (dataSource === "db") {
+      students.forEach(student => {
+        const exams: any[] = [];
+        student.courses.forEach(courseId => {
+          const entry = entries.find(e => e.courseId === courseId);
+          if (entry) {
+            const course = courses.find(c => c.id === courseId);
+            if (course) {
+              const room = rooms.find(r => r.id === entry.roomId);
+              let seatText = "Auto-Allocated";
+              try {
+                const savedSeating = localStorage.getItem("exam_scheduler_custom_seating");
+                if (savedSeating) {
+                  const seatingData = JSON.parse(savedSeating);
+                  const seatKey = `${entry.timeslotId}_${entry.roomId}`;
+                  const arrangement = seatingData[seatKey];
+                  if (arrangement && Array.isArray(arrangement)) {
+                    const idx = arrangement.indexOf(student.id);
+                    if (idx !== -1) {
+                      const gridSaved = localStorage.getItem("exam_scheduler_grid_configs");
+                      let numCols = 6;
+                      if (gridSaved) {
+                        const gridData = JSON.parse(gridSaved);
+                        if (gridData[seatKey] && gridData[seatKey].numCols) {
+                          numCols = gridData[seatKey].numCols;
+                        }
                       }
+                      const row = Math.floor(idx / numCols) + 1;
+                      const col = (idx % numCols) + 1;
+                      seatText = `Row ${row}, Col ${col}`;
                     }
-                    const row = Math.floor(idx / numCols) + 1;
-                    const col = (idx % numCols) + 1;
-                    seatText = `Row ${row}, Col ${col}`;
                   }
                 }
+              } catch (e) {
+                console.error(e);
               }
-            } catch (e) {
-              console.error("Error looking up seat", e);
-            }
 
-            exams.push({ entry, course, room, seatText });
+              exams.push({
+                courseId: course.id,
+                courseName: course.name,
+                dateTimeText: getTimeslotExact(entry.timeslotId, examStartDate),
+                roomName: room ? `${room.name} (${room.building})` : 'Unassigned',
+                seatText
+              });
+            }
           }
-        }
+        });
+        exams.sort((a, b) => a.dateTimeText.localeCompare(b.dateTimeText));
+        map[student.id] = exams;
       });
-      // Sort exams by slot sequence or timeslotId
-      exams.sort((a, b) => a.entry.timeslotId.localeCompare(b.entry.timeslotId));
-      map[student.id] = exams;
-    });
+    } else {
+      excelStudents.forEach(student => {
+        map[student.id] = student.exams.map(e => ({
+          courseId: e.courseId,
+          courseName: e.courseName,
+          dateTimeText: e.dateTime,
+          roomName: e.roomName,
+          seatText: e.seatText
+        }));
+      });
+    }
 
     return map;
-  }, [students, entries, courses, rooms]);
+  }, [dataSource, students, entries, courses, rooms, excelStudents, examStartDate]);
 
-  // Filtered students
-  const filteredStudents = useMemo(() => {
-    return students.filter(student => {
-      // Find branch/year from first course
-      const firstCourseId = student.courses[0];
-      const course = courses.find(c => c.id === firstCourseId);
-      const studentBranch = course?.branch || "CSE";
-      const studentYear = course?.year?.toString() || "1";
+  // Filtered List
+  const filteredList = useMemo(() => {
+    const list = dataSource === "db" ? students : excelStudents;
+
+    return list.filter(student => {
+      let studentBranch = "CSE";
+      let studentYear = "1";
+
+      if (dataSource === "db") {
+        const firstCourseId = student.courses[0];
+        const course = courses.find(c => c.id === firstCourseId);
+        studentBranch = course?.branch || "CSE";
+        studentYear = course?.year?.toString() || "1";
+      } else {
+        studentBranch = student.branch;
+        studentYear = (student as ExcelStudent).year;
+      }
 
       const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             student.id.toLowerCase().includes(searchQuery.toLowerCase());
@@ -115,9 +341,9 @@ export default function TicketsTab({
 
       return matchesSearch && matchesBranch && matchesYear;
     });
-  }, [students, courses, searchQuery, selectedBranch, selectedYear]);
+  }, [dataSource, students, excelStudents, courses, searchQuery, selectedBranch, selectedYear]);
 
-  // Select / Deselect Handlers
+  // Selection handlers
   const handleToggleSelect = (id: string) => {
     const next = new Set(selectedStudentIds);
     if (next.has(id)) {
@@ -130,7 +356,7 @@ export default function TicketsTab({
 
   const handleSelectAllVisible = () => {
     const next = new Set(selectedStudentIds);
-    filteredStudents.forEach(s => next.add(s.id));
+    filteredList.forEach(s => next.add(s.id));
     setSelectedStudentIds(next);
   };
 
@@ -138,9 +364,8 @@ export default function TicketsTab({
     setSelectedStudentIds(new Set());
   };
 
-  // Helper: Trigger browser print
+  // Printable layout generator trigger
   const handlePrint = (studentIds: string[]) => {
-    // Create print container
     const printContainerId = "hall-ticket-print-container";
     let printDiv = document.getElementById(printContainerId);
     if (!printDiv) {
@@ -150,22 +375,40 @@ export default function TicketsTab({
       document.body.appendChild(printDiv);
     }
 
-    // Populate tickets
     let htmlContent = "";
     studentIds.forEach((id, idx) => {
-      const student = students.find(s => s.id === id);
+      const student = dataSource === "db" 
+        ? students.find(s => s.id === id)
+        : excelStudents.find(s => s.id === id);
+
       if (!student) return;
-      const exams = studentExams[id] || [];
-      const firstCourse = courses.find(c => c.id === student.courses[0]);
-      const branchName = getBranchFullName(firstCourse?.branch || "CSE");
-      const year = firstCourse?.year || 1;
+      const exams = studentExamsMap[id] || [];
+      
+      let branchName = "CSE";
+      let year = "1";
+      if (dataSource === "db") {
+        const firstCourse = courses.find(c => c.id === student.courses[0]);
+        branchName = getBranchFullName(firstCourse?.branch || "CSE");
+        year = (firstCourse?.year || 1).toString();
+      } else {
+        branchName = getBranchFullName(student.branch);
+        year = (student as ExcelStudent).year;
+      }
+
+      const logoHtml = collegeLogoUrl 
+        ? `<img src="${collegeLogoUrl}" class="college-logo-img" />`
+        : `<div class="college-logo-placeholder">🎓</div>`;
+
+      const sigHtml = controllerSigUrl
+        ? `<img src="${controllerSigUrl}" class="controller-sig-img" />`
+        : `<div class="sig-space"></div>`;
 
       htmlContent += `
         <div class="printable-ticket-card">
           <div class="ticket-header">
-            <div class="college-logo-placeholder">🎓</div>
+            ${logoHtml}
             <div class="college-title-block">
-              <h1 class="college-name">${collegeName}</h1>
+              <h1 class="college-name">${customCollegeName}</h1>
               <h2 class="exam-title">OFFICIAL SEMESTER EXAMINATION HALL TICKET - 2026</h2>
             </div>
           </div>
@@ -190,7 +433,7 @@ export default function TicketsTab({
                 </tr>
                 <tr>
                   <td class="info-label">Academic Year:</td>
-                  <td class="info-value">Year ${year} (Semester ${year * 2 - 1})</td>
+                  <td class="info-value">Year ${year} (Semester ${Number(year) * 2 - 1})</td>
                 </tr>
               </table>
             </div>
@@ -211,10 +454,10 @@ export default function TicketsTab({
               <tbody>
                 ${exams.map(ex => `
                   <tr>
-                    <td class="font-mono">${ex.course.id}</td>
-                    <td>${ex.course.name}</td>
-                    <td>${getTimeslotExact(ex.entry.timeslotId, examStartDate)}</td>
-                    <td>${ex.room ? `${ex.room.name} (${ex.room.building})` : 'Unassigned'}</td>
+                    <td class="font-mono">${ex.courseId}</td>
+                    <td>${ex.courseName}</td>
+                    <td>${ex.dateTimeText}</td>
+                    <td>${ex.roomName}</td>
                     <td class="font-bold text-center">${ex.seatText}</td>
                   </tr>
                 `).join('')}
@@ -242,7 +485,7 @@ export default function TicketsTab({
               <p>Signature of the Candidate</p>
             </div>
             <div class="sig-line text-right">
-              <div class="sig-space"></div>
+              ${sigHtml}
               <p>Controller of Examinations</p>
             </div>
           </div>
@@ -252,8 +495,6 @@ export default function TicketsTab({
     });
 
     printDiv.innerHTML = htmlContent;
-
-    // Trigger Print
     window.print();
   };
 
@@ -261,7 +502,6 @@ export default function TicketsTab({
     <div className="space-y-6">
       {/* CSS Stylesheet injected for printable output */}
       <style>{`
-        /* Print Stylesheet overrides */
         @media print {
           body * {
             visibility: hidden;
@@ -295,10 +535,22 @@ export default function TicketsTab({
             border-bottom: 2px solid #333;
             padding-bottom: 12px;
             margin-bottom: 15px;
+            gap: 15px;
           }
           .college-logo-placeholder {
             font-size: 28px;
-            margin-right: 15px;
+            margin-right: 5px;
+          }
+          .college-logo-img {
+            max-height: 48px;
+            max-width: 48px;
+            object-fit: contain;
+          }
+          .controller-sig-img {
+            max-height: 35px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
           }
           .college-name {
             font-size: 16px;
@@ -428,24 +680,156 @@ export default function TicketsTab({
       `}</style>
 
       {/* Top Header Card */}
-      <div className="bg-[#12151C] p-6 rounded-2xl border border-slate-800 shadow-xl flex items-center justify-between">
+      <div className="bg-[#12151C] p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-wrap gap-4 items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-indigo-400" />
             <h1 className="text-xl font-bold text-white tracking-tight">Student Hall Tickets</h1>
           </div>
           <p className="text-xs text-slate-400">
-            Generate, customize, and print official semester examination hall tickets for candidates complete with schedule details and seat numbers.
+            Generate and print official semester examination hall tickets for candidates using local database schedules or imported seating Excel files.
           </p>
         </div>
-        {selectedStudentIds.size > 0 && (
+
+        {/* Data Source Selector */}
+        <div className="flex items-center gap-2.5 p-1 bg-slate-950/60 rounded-xl border border-slate-800 shrink-0">
           <button
-            onClick={() => handlePrint(Array.from(selectedStudentIds))}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
+            onClick={() => setDataSource("db")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer select-none ${
+              dataSource === "db"
+                ? "bg-slate-800 text-white border border-slate-700/60 shadow-sm"
+                : "text-slate-400 hover:text-white"
+            }`}
           >
-            <Printer className="w-4 h-4" /> Print Selected Tickets ({selectedStudentIds.size})
+            <School className="w-3.5 h-3.5" /> Database Schedule
           </button>
+          <button
+            onClick={() => setDataSource("excel")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer select-none ${
+              dataSource === "excel"
+                ? "bg-slate-800 text-white border border-slate-700/60 shadow-sm"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Custom Seating Sheet
+          </button>
+        </div>
+      </div>
+
+      {/* Custom Template Customization Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Custom Seating Sheet Uploader */}
+        {dataSource === "excel" && (
+          <div className="p-6 rounded-2xl bg-[#12151C] border border-slate-800 lg:col-span-6 space-y-4 shadow-xl flex flex-col justify-between min-h-[190px]">
+            <div>
+              <div className="flex items-center gap-2 border-b border-slate-800 pb-3 justify-between">
+                <div className="flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-emerald-400" />
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">Upload Custom Sheet</h2>
+                </div>
+                <button
+                  onClick={downloadTemplate}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[9px] font-bold border border-slate-750 flex items-center gap-0.5 transition cursor-pointer select-none"
+                >
+                  <Download className="w-2.5 h-2.5" /> Download Template
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+                Upload a custom Excel spreadsheet (.xlsx, .xls) containing seating arrangements and exam details to instantly design and print student hall tickets from it.
+              </p>
+              {excelError && (
+                <div className="mt-3 p-2 bg-red-950/20 border border-red-900/40 rounded-lg text-[10px] text-red-400 font-semibold">
+                  ⚠️ {excelError}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleExcelUpload}
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isParsingExcel}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/20 cursor-pointer select-none"
+              >
+                {isParsingExcel ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Parsing Custom Sheet...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" /> {excelFileName ? `Change File (${excelFileName})` : "Upload Custom Excel Sheet"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         )}
+
+        {/* Right: Hall Ticket Header Logo / Signatures customization */}
+        <div className={`p-6 rounded-2xl bg-[#12151C] border border-slate-800 shadow-xl space-y-4 ${
+          dataSource === "excel" ? "lg:col-span-6" : "lg:col-span-12"
+        }`}>
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+            <Sliders className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Customize Hall Tickets Layout</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wide">College Header Name</label>
+              <input
+                type="text"
+                value={customCollegeName}
+                onChange={(e) => setCustomCollegeName(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-slate-850 bg-[#0A0C10] text-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-550"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wide">Upload College Logo</label>
+              <input
+                type="file"
+                ref={logoInputRef}
+                onChange={(e) => handleImageUpload(e, setCollegeLogoUrl)}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                className="w-full px-3 py-2 text-xs border border-slate-850 bg-[#0A0C10] hover:bg-slate-900 text-slate-300 rounded-lg transition flex items-center justify-between cursor-pointer"
+              >
+                <span className="truncate max-w-[120px]">{collegeLogoUrl ? "Logo Loaded ✅" : "Choose Logo Image"}</span>
+                <ImageIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wide">Controller Signature</label>
+              <input
+                type="file"
+                ref={sigInputRef}
+                onChange={(e) => handleImageUpload(e, setControllerSigUrl)}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => sigInputRef.current?.click()}
+                className="w-full px-3 py-2 text-xs border border-slate-850 bg-[#0A0C10] hover:bg-slate-900 text-slate-300 rounded-lg transition flex items-center justify-between cursor-pointer"
+              >
+                <span className="truncate max-w-[120px]">{controllerSigUrl ? "Signature Loaded ✅" : "Choose Signature Image"}</span>
+                <ImageIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter and Selection Toolbar */}
@@ -471,7 +855,7 @@ export default function TicketsTab({
               className="px-2.5 py-1.5 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">View All Branches</option>
-              {studentBranches.map(b => (
+              {branchesList.map(b => (
                 <option key={b} value={b}>{getBranchFullName(b)}</option>
               ))}
             </select>
@@ -495,11 +879,19 @@ export default function TicketsTab({
 
         {/* Right: Quick actions */}
         <div className="flex items-center gap-2">
+          {selectedStudentIds.size > 0 && (
+            <button
+              onClick={() => handlePrint(Array.from(selectedStudentIds))}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 shadow-md shadow-emerald-950/20 cursor-pointer select-none"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print Selected ({selectedStudentIds.size})
+            </button>
+          )}
           <button
             onClick={handleSelectAllVisible}
             className="px-3 py-1.5 bg-slate-800/40 hover:bg-slate-800 text-slate-300 rounded-lg text-[10px] font-semibold border border-slate-700/40 cursor-pointer select-none"
           >
-            Select All Visible ({filteredStudents.length})
+            Select All Visible ({filteredList.length})
           </button>
           <button
             onClick={handleDeselectAll}
@@ -510,14 +902,22 @@ export default function TicketsTab({
         </div>
       </div>
 
-      {/* Grid of Student Hall Ticket previews */}
+      {/* Grid of Student Hall Ticket Previews */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredStudents.map(student => {
-          const exams = studentExams[student.id] || [];
+        {filteredList.map(student => {
+          const exams = studentExamsMap[student.id] || [];
           const isSelected = selectedStudentIds.has(student.id);
-          const firstCourse = courses.find(c => c.id === student.courses[0]);
-          const branchName = getBranchFullName(firstCourse?.branch || "CSE");
-          const year = firstCourse?.year || 1;
+          
+          let branchName = "CSE";
+          let year = "1";
+          if (dataSource === "db") {
+            const firstCourse = courses.find(c => c.id === student.courses[0]);
+            branchName = getBranchFullName(firstCourse?.branch || "CSE");
+            year = (firstCourse?.year || 1).toString();
+          } else {
+            branchName = getBranchFullName(student.branch);
+            year = (student as ExcelStudent).year;
+          }
 
           return (
             <div
@@ -543,13 +943,13 @@ export default function TicketsTab({
               <div>
                 <div className="flex items-start gap-3 border-b border-slate-800/70 pb-4 mb-4">
                   <div className="w-12 h-14 bg-slate-800 rounded border border-slate-700 flex items-center justify-center text-[9px] text-slate-500 font-bold select-none shrink-0 uppercase">
-                    Avatar
+                    Photo
                   </div>
                   <div className="space-y-1">
                     <h2 className="text-sm font-bold text-white leading-tight">{student.name}</h2>
                     <p className="text-[10px] text-indigo-400 font-mono font-bold uppercase tracking-wider">{student.id}</p>
                     <div className="flex flex-wrap gap-2 pt-0.5">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[9px] text-slate-400 font-semibold">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[9px] text-slate-400 font-semibold text-ellipsis max-w-[150px] truncate" title={branchName}>
                         {branchName}
                       </span>
                       <span className="px-1.5 py-0.5 rounded bg-indigo-950/40 border border-indigo-900/40 text-[9px] text-indigo-400 font-semibold">
@@ -563,16 +963,16 @@ export default function TicketsTab({
                 <div className="space-y-3">
                   <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Scheduled Examinations ({exams.length})</h3>
                   <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                    {exams.map(ex => (
-                      <div key={ex.course.id} className="p-2.5 rounded-lg bg-[#0A0C10]/40 border border-slate-800/60 flex items-center justify-between gap-4 text-[11px]">
+                    {exams.map((ex, sidx) => (
+                      <div key={sidx} className="p-2.5 rounded-lg bg-[#0A0C10]/40 border border-slate-800/60 flex items-center justify-between gap-4 text-[11px]">
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-white font-bold">{ex.course.id}</span>
-                            <span className="text-slate-400 truncate max-w-[150px]" title={ex.course.name}>{ex.course.name}</span>
+                            <span className="font-mono text-white font-bold">{ex.courseId}</span>
+                            <span className="text-slate-400 truncate max-w-[150px]" title={ex.courseName}>{ex.courseName}</span>
                           </div>
                           <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                            <span className="flex items-center gap-0.5"><Calendar className="w-3 h-3 shrink-0" /> {getTimeslotExact(ex.entry.timeslotId, examStartDate)}</span>
-                            <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 shrink-0" /> {ex.room ? ex.room.name : 'Unassigned'}</span>
+                            <span className="flex items-center gap-0.5"><Calendar className="w-3 h-3 shrink-0" /> {ex.dateTimeText}</span>
+                            <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 shrink-0" /> {ex.roomName}</span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
@@ -603,10 +1003,19 @@ export default function TicketsTab({
           );
         })}
 
-        {filteredStudents.length === 0 && (
+        {filteredList.length === 0 && (
           <div className="col-span-2 text-center py-20 border border-dashed border-slate-800 rounded-3xl space-y-3">
-            <UserCheck className="w-10 h-10 text-slate-600 mx-auto" />
-            <p className="text-xs text-slate-500 italic">No students matched the selected search filters.</p>
+            {dataSource === "excel" && excelStudents.length === 0 ? (
+              <>
+                <FileSpreadsheet className="w-10 h-10 text-slate-600 mx-auto" />
+                <p className="text-xs text-slate-500 italic">Please upload a custom Excel Seating Sheet to generate tickets.</p>
+              </>
+            ) : (
+              <>
+                <UserCheck className="w-10 h-10 text-slate-600 mx-auto" />
+                <p className="text-xs text-slate-500 italic">No students matched the selected search filters.</p>
+              </>
+            )}
           </div>
         )}
       </div>
