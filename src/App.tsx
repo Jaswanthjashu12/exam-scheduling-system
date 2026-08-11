@@ -15,6 +15,7 @@ import SeatingTab from "./components/SeatingTab";
 import ReportsTab from "./components/ReportsTab";
 import GeminiCopilot from "./components/GeminiCopilot";
 import LoginPage from "./components/LoginPage";
+import TicketsTab from "./components/TicketsTab";
 
 // Icon imports
 import {
@@ -45,7 +46,7 @@ import {
 } from "lucide-react";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "config" | "scheduler" | "seating" | "reports" | "copilot">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "config" | "scheduler" | "seating" | "reports" | "copilot" | "tickets">("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("exam_scheduler_sidebar_collapsed") === "true";
   });
@@ -442,6 +443,7 @@ export default function App() {
               { id: "scheduler", label: "Optimizer Calendar", icon: Calendar },
               { id: "seating", label: "Seating Layout Plan", icon: Contact },
               { id: "reports", label: "Analysis Reports", icon: FileText },
+              { id: "tickets", label: "Student Hall Tickets", icon: GraduationCap },
               { id: "copilot", label: "AI proctor Copilot", icon: BrainCircuit, premium: true },
             ].map((item) => {
               const Icon = item.icon;
@@ -527,6 +529,7 @@ export default function App() {
             <option value="scheduler">Optimizer Calendar</option>
             <option value="seating">Seating Plan</option>
             <option value="reports">Reports</option>
+            <option value="tickets">Hall Tickets</option>
             <option value="copilot">AI Copilot</option>
           </select>
         </header>
@@ -750,6 +753,18 @@ export default function App() {
             entries={entries}
             collegeName={collegeName}
             examStartDate={examStartDate}
+          />
+        )}
+
+        {/* 6. STUDENT HALL TICKETS TAB */}
+        {activeTab === "tickets" && (
+          <TicketsTab
+            courses={courses}
+            rooms={rooms}
+            students={students}
+            entries={entries}
+            examStartDate={examStartDate}
+            collegeName={collegeName}
           />
         )}
 
