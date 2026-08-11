@@ -1064,98 +1064,153 @@ export default function SchedulerTab({
                   </div>
 
                   <div className="space-y-2 flex-grow min-h-[140px]">
-                    {slotEntries.map((ent) => {
-                      const course = courses.find((c) => c.id === ent.courseId);
-                      const room = rooms.find((r) => r.id === ent.roomId);
-                      const inv = invigilators.find((i) => i.id === ent.invigilatorId);
-                      
-                      // Calculate the student count for this room if course is scheduled in multiple rooms
-                      const courseEntries = slotEntries.filter((e) => e.courseId === ent.courseId);
-                      const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
-                      let studCount = totalStudents;
-                      
-                      if (courseEntries.length > 1) {
-                        const roomsWithCap = courseEntries.map((e) => {
-                          const r = rooms.find((rm) => rm.id === e.roomId);
-                          return {
-                            id: e.id,
-                            roomId: e.roomId,
-                            capacity: r?.capacity || 30,
-                          };
-                        }); // Keep user's custom allocation priority order (do not sort by capacity)
+                    {(() => {
+                      // Group slotEntries by courseId
+                      const groupedExamsMap = new Map<string, {
+                        courseId: string;
+                        courseName: string;
+                        exams: {
+                          id: string;
+                          roomId: string;
+                          roomName: string;
+                          studentCount: number;
+                          proctors: string;
+                          rawEntry: ScheduleEntry;
+                        }[];
+                      }>();
+
+                      slotEntries.forEach((ent) => {
+                        const course = courses.find((c) => c.id === ent.courseId);
+                        const room = rooms.find((r) => r.id === ent.roomId);
                         
-                        const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+                        // Calculate partitioned student count
+                        const courseEntries = slotEntries.filter((e) => e.courseId === ent.courseId);
+                        const totalStudents = students.filter((s) => s.courses.some(c => c.trim().toUpperCase() === ent.courseId.trim().toUpperCase())).length;
+                        let studCount = totalStudents;
                         
-                        let assignedSoFar = 0;
-                        for (let i = 0; i <= entIdx; i++) {
-                          const rObj = roomsWithCap[i];
-                          if (i === entIdx) {
-                            if (i === roomsWithCap.length - 1) {
-                              studCount = totalStudents - assignedSoFar;
+                        if (courseEntries.length > 1) {
+                          const roomsWithCap = courseEntries.map((e) => {
+                            const r = rooms.find((rm) => rm.id === e.roomId);
+                            return {
+                              id: e.id,
+                              roomId: e.roomId,
+                              capacity: r?.capacity || 30,
+                            };
+                          });
+                          const entIdx = roomsWithCap.findIndex((r) => r.id === ent.id);
+                          let assignedSoFar = 0;
+                          for (let i = 0; i <= entIdx; i++) {
+                            const rObj = roomsWithCap[i];
+                            if (i === entIdx) {
+                              if (i === roomsWithCap.length - 1) {
+                                studCount = totalStudents - assignedSoFar;
+                              } else {
+                                studCount = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+                              }
                             } else {
-                              studCount = Math.min(rObj.capacity, totalStudents - assignedSoFar);
+                              assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
                             }
-                          } else {
-                            assignedSoFar += Math.min(rObj.capacity, totalStudents - assignedSoFar);
                           }
                         }
-                      }
 
-                      return (
-                        <div key={ent.id} className="p-3 bg-[#12151C] rounded-lg border border-slate-800 shadow-sm space-y-2 hover:border-slate-700 transition group relative">
-                          <div className="flex justify-between items-start gap-1">
-                            <div>
-                              <p className="text-[10px] font-mono font-semibold text-blue-400">{course?.id}</p>
-                              <h5 className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[140px]" title={course?.name}>
-                                {course?.name}
-                              </h5>
+                        // Invigilators list
+                        const ids = ent.invigilatorId ? ent.invigilatorId.split(",") : [];
+                        const procs = invigilators.filter((i) => ids.includes(i.id));
+                        const proctorsText = procs.length > 0 ? procs.map(p => p.name).join(", ") : "None Assigned";
+
+                        const grouped = groupedExamsMap.get(ent.courseId) || {
+                          courseId: ent.courseId,
+                          courseName: course?.name || ent.courseId,
+                          exams: []
+                        };
+
+                        grouped.exams.push({
+                          id: ent.id,
+                          roomId: ent.roomId,
+                          roomName: room?.name || "Unassigned",
+                          studentCount: studCount,
+                          proctors: proctorsText,
+                          rawEntry: ent
+                        });
+
+                        groupedExamsMap.set(ent.courseId, grouped);
+                      });
+
+                      const groupedExams = Array.from(groupedExamsMap.values());
+
+                      return groupedExams.map((group) => {
+                        const firstExam = group.exams[0];
+                        const totalCourseStudents = group.exams.reduce((sum, ex) => sum + ex.studentCount, 0);
+
+                        return (
+                          <div key={group.courseId} className="p-3 bg-[#12151C] rounded-lg border border-slate-800 shadow-sm space-y-2 hover:border-slate-700 transition group relative">
+                            <div className="flex justify-between items-start gap-1">
+                              <div>
+                                <p className="text-[10px] font-mono font-semibold text-blue-400">{group.courseId}</p>
+                                <h5 className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[140px]" title={group.courseName}>
+                                  {group.courseName}
+                                </h5>
+                                <p className="text-[8px] text-slate-500 font-semibold font-mono uppercase tracking-wider mt-0.5">
+                                  Total: {totalCourseStudents} students
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={async () => {
+                                    for (const exam of group.exams) {
+                                      if (exam.rawEntry.invigilatorId) {
+                                        await handleSendNotification(exam.rawEntry.id);
+                                      }
+                                    }
+                                  }}
+                                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 cursor-pointer"
+                                  title="Send Email Notification to all Proctors"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditClick(firstExam.rawEntry)}
+                                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 cursor-pointer"
+                                  title="Manual Override Assignment Details"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Remove/Unschedule exam for "${group.courseName}"? All room allocations will be moved to the Pending list.`)) {
+                                      const examEntryIds = group.exams.map(ex => ex.id);
+                                      setEntries((prev) =>
+                                        prev.map((e) =>
+                                          examEntryIds.includes(e.id) ? { ...e, timeslotId: "", roomId: "", invigilatorId: "" } : e
+                                        )
+                                      );
+                                    }
+                                  }}
+                                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer animate-none"
+                                  title="Unschedule exam"
+                                >
+                                  <Trash className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleSendNotification(ent.id)}
-                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 cursor-pointer"
-                                title="Send Email Notification to Invigilator"
-                              >
-                                <Mail className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleEditClick(ent)}
-                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-blue-400 cursor-pointer"
-                                title="Manual Override Assignment Details"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Remove/Unschedule exam for "${course?.name || ent.courseId}"? It will be moved to the Pending list.`)) {
-                                    setEntries((prev) =>
-                                      prev.map((e) =>
-                                        e.id === ent.id ? { ...e, timeslotId: "", roomId: "", invigilatorId: "" } : e
-                                      )
-                                    );
-                                  }
-                                }}
-                                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-400 cursor-pointer animate-none"
-                                title="Unschedule exam"
-                              >
-                                <Trash className="w-3.5 h-3.5" />
-                              </button>
+
+                            <div className="space-y-1 text-[10px] text-slate-400 border-t border-slate-800/80 pt-1.5">
+                              {group.exams.map((exam) => (
+                                <div key={exam.id} className="flex flex-col bg-[#0A0C10]/40 p-1.5 rounded border border-slate-850 gap-0.5">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-white truncate max-w-[120px]">🏢 {exam.roomName}</span>
+                                    <span className="text-[9px] text-slate-400 font-bold font-mono">({exam.studentCount} seats)</span>
+                                  </div>
+                                  <div className="text-[9px] text-slate-450 leading-normal truncate" title={exam.proctors}>
+                                    <span className="text-slate-500 font-semibold">👤 Proctor:</span> {exam.proctors}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-
-                          <div className="space-y-1 text-[10px] text-slate-400 border-t border-slate-800 pt-1.5">
-                            <p className="font-medium text-slate-300">🏢 Room: <span className="font-semibold text-white">{room?.name || "Unassigned"}</span> ({studCount} students)</p>
-                            <p className="font-medium text-slate-300">👤 Proctored by: <span className="font-semibold text-slate-200">
-                              {(() => {
-                                const ids = ent.invigilatorId ? ent.invigilatorId.split(",") : [];
-                                const procs = invigilators.filter((i) => ids.includes(i.id));
-                                return procs.length > 0 ? procs.map(p => p.name).join(", ") : "None Assigned";
-                              })()}
-                            </span></p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
 
                     {slotEntries.length === 0 && (
                       <div className="h-full flex items-center justify-center border border-dashed border-slate-800 rounded-lg py-12">
