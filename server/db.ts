@@ -349,14 +349,11 @@ export async function initDatabase(): Promise<void> {
     console.error("Migration error for branches list:", err);
   }
 
-  // Seed default admin user if empty
+  // Seed or update default master admin credentials
   try {
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-    if (userCount.count === 0) {
-      db.prepare('INSERT INTO users (username, password, college_name) VALUES (?, ?, ?)')
-        .run('admin', 'admin123', 'State Institute of Technology');
-      console.log("[Database] Seeded default admin user account successfully.");
-    }
+    db.prepare('INSERT OR REPLACE INTO users (username, password, college_name) VALUES (?, ?, ?)')
+      .run('admin', 'gmrit123', 'GMR Institute of Technology');
+    console.log("[Database] Seeded/Updated default admin user account successfully.");
   } catch (err) {
     console.error("Error seeding default admin user account:", err);
   }

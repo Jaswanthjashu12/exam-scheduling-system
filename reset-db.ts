@@ -192,7 +192,7 @@ try {
     .run('State Institute of Technology', '2026-06-15');
 
   db.prepare('INSERT INTO users (username, password, college_name) VALUES (?, ?, ?)')
-    .run('admin', 'admin123', 'State Institute of Technology');
+    .run('admin', 'gmrit123', 'GMR Institute of Technology');
 
   const defaultBranches = [
     'CSE',
