@@ -300,11 +300,11 @@ export function generateDefaultDataset() {
   ];
 
   const invigilators: Invigilator[] = [
-    { id: "INV-101", name: "Dr. Elizabeth Vance", department: "Science", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning"], maxWorkload: 3 },
-    { id: "INV-102", name: "Prof. Marcus Brody", department: "Linguistics", availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Afternoon", "Day-3-Afternoon"], maxWorkload: 2 },
-    { id: "INV-103", name: "Dr. Sarah Connor", department: "Mathematics", availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon", "Day-3-Morning", "Day-3-Afternoon", "Day-3-Evening"], maxWorkload: 4 },
-    { id: "INV-104", name: "Dr. Henry Jones", department: "History", availability: ["Day-1-Evening", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning", "Day-3-Evening"], maxWorkload: 3 },
-    { id: "INV-105", name: "Prof. Rupert Giles", department: "Humanities", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-3-Afternoon", "Day-3-Evening"], maxWorkload: 3 },
+    { id: "INV-101", name: "Dr. Elizabeth Vance", department: "CSE", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning"], maxWorkload: 3 },
+    { id: "INV-102", name: "Prof. Marcus Brody", department: "ECE", availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Afternoon", "Day-3-Afternoon"], maxWorkload: 2 },
+    { id: "INV-103", name: "Dr. Sarah Connor", department: "EEE", availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon", "Day-3-Morning", "Day-3-Afternoon", "Day-3-Evening"], maxWorkload: 4 },
+    { id: "INV-104", name: "Dr. Henry Jones", department: "IT", availability: ["Day-1-Evening", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning", "Day-3-Evening"], maxWorkload: 3 },
+    { id: "INV-105", name: "Prof. Rupert Giles", department: "MECH", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-3-Afternoon", "Day-3-Evening"], maxWorkload: 3 },
   ];
 
   // Raw mock student enrollment mapping (some with specific accommodations)
@@ -1026,16 +1026,16 @@ export function generateSimpleDataset() {
   ];
 
   const invigilators: Invigilator[] = [
-    { id: "INV-01", name: "Prof. John Smith", department: "Mathematics", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon"], maxWorkload: 3 },
-    { id: "INV-02", name: "Ms. Clara Davis", department: "Arts", availability: ["Day-1-Morning", "Day-2-Morning", "Day-3-Morning"], maxWorkload: 3 },
-    { id: "INV-03", name: "Dr. Rajesh Kumar", department: "Physics", availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Evening", "Day-3-Afternoon"], maxWorkload: 3 },
-    { id: "INV-04", name: "Prof. Emily Chan", department: "Computer Science", availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Afternoon", "Day-3-Morning"], maxWorkload: 3 },
-    { id: "INV-05", name: "Mr. Samuel Green", department: "History", availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon", "Day-3-Evening"], maxWorkload: 3 },
-    { id: "INV-06", name: "Dr. Ananya Patel", department: "Science", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-3-Morning", "Day-3-Afternoon"], maxWorkload: 3 },
-    { id: "INV-07", name: "Prof. Liu Wei", department: "Engineering", availability: ["Day-2-Morning", "Day-2-Afternoon", "Day-3-Morning", "Day-3-Afternoon"], maxWorkload: 3 },
-    { id: "INV-08", name: "Ms. Priya Sharma", department: "Mathematics", availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Evening", "Day-3-Morning"], maxWorkload: 3 },
-    { id: "INV-09", name: "Dr. Marco Rossi", department: "Physics", availability: ["Day-1-Afternoon", "Day-2-Afternoon", "Day-3-Afternoon", "Day-3-Evening"], maxWorkload: 3 },
-    { id: "INV-10", name: "Prof. Aisha Okonkwo", department: "Humanities", availability: ["Day-1-Morning", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning"], maxWorkload: 3 },
+    { id: "INV-01", name: "Prof. John Smith", department: "CSE", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon"], maxWorkload: 3 },
+    { id: "INV-02", name: "Ms. Clara Davis", department: "ECE", availability: ["Day-1-Morning", "Day-2-Morning", "Day-3-Morning"], maxWorkload: 3 },
+    { id: "INV-03", name: "Dr. Rajesh Kumar", department: "EEE", availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Evening", "Day-3-Afternoon"], maxWorkload: 3 },
+    { id: "INV-04", name: "Prof. Emily Chan", department: "CSE", availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Afternoon", "Day-3-Morning"], maxWorkload: 3 },
+    { id: "INV-05", name: "Mr. Samuel Green", department: "IT", availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon", "Day-3-Evening"], maxWorkload: 3 },
+    { id: "INV-06", name: "Dr. Ananya Patel", department: "CSE", availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-3-Morning", "Day-3-Afternoon"], maxWorkload: 3 },
+    { id: "INV-07", name: "Prof. Liu Wei", department: "MECH", availability: ["Day-2-Morning", "Day-2-Afternoon", "Day-3-Morning", "Day-3-Afternoon"], maxWorkload: 3 },
+    { id: "INV-08", name: "Ms. Priya Sharma", department: "EEE", availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Evening", "Day-3-Morning"], maxWorkload: 3 },
+    { id: "INV-09", name: "Dr. Marco Rossi", department: "EEE", availability: ["Day-1-Afternoon", "Day-2-Afternoon", "Day-3-Afternoon", "Day-3-Evening"], maxWorkload: 3 },
+    { id: "INV-10", name: "Prof. Aisha Okonkwo", department: "MECH", availability: ["Day-1-Morning", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning"], maxWorkload: 3 },
   ];
 
   const students: Student[] = [

@@ -211,14 +211,14 @@ try {
 
   // 3. Define Seed Data
   const courses = [
-    { id: "CS-101", name: "Introduction to Computer Science", duration: 120, priority: "High", branch: "Computer Science & Eng", year: 1 },
-    { id: "MATH-201", name: "Differential Calculus", duration: 180, priority: "High", branch: "Computer Science & Eng", year: 2 },
-    { id: "PHY-110", name: "Physics: Optics & Electromagnetism", duration: 120, priority: "Medium", branch: "Electrical & Electronics", year: 1 },
-    { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "Business & Humanities", year: 3 },
-    { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "Business & Humanities", year: 2 },
-    { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "Business & Humanities", year: 4 },
-    { id: "23IT301", name: "Information Technology", duration: 120, priority: "High", branch: "Computer Science & Eng", year: 3 },
-    { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "Mechanical Engineering", year: 4 },
+    { id: "CS-101", name: "Introduction to Computer Science", duration: 120, priority: "High", branch: "CSE", year: 1 },
+    { id: "MATH-201", name: "Differential Calculus", duration: 180, priority: "High", branch: "CSE", year: 2 },
+    { id: "PHY-110", name: "Physics: Optics & Electromagnetism", duration: 120, priority: "Medium", branch: "EEE", year: 1 },
+    { id: "CHEM-120", name: "Analytical Organic Chemistry", duration: 150, priority: "Medium", branch: "CIVIL", year: 3 },
+    { id: "BIO-101", name: "Cellular & Molecular Biology", duration: 120, priority: "Low", branch: "CSE-AIML", year: 2 },
+    { id: "LIT-305", name: "Contemporary Literature Studies", duration: 90, priority: "Low", branch: "CSE-AIDS", year: 4 },
+    { id: "23IT301", name: "Information Technology", duration: 120, priority: "High", branch: "IT", year: 3 },
+    { id: "ENG-220", name: "Advanced Engineering Design", duration: 180, priority: "High", branch: "MECH", year: 4 },
   ];
 
   const rooms = [
