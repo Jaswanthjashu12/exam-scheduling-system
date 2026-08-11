@@ -844,14 +844,14 @@ export default function SchedulerTab({
                 <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block">Enrolled Student Count: <span className="text-white font-bold">{newStudentCount} seats</span></label>
                 <input
                   type="range"
-                  min={1}
+                  min={0}
                   max={45}
                   value={newStudentCount}
                   onChange={(e) => setNewStudentCount(Number(e.target.value))}
                   className="w-full accent-indigo-500 cursor-pointer text-xs"
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                  <span>1 seat</span>
+                  <span>0 seats</span>
                   <span>45 seats</span>
                 </div>
               </div>
