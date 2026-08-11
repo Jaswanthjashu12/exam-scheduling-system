@@ -781,8 +781,18 @@ export default function ConfigurationTab({
                 </div>
               ))}
               {branches.length === 0 && (
-                <div className="text-center py-4 w-full text-[10px] text-slate-500 font-medium">
-                  Zero branches configured. Add your first academic branch below!
+                <div className="text-center py-4 w-full flex flex-col items-center justify-center gap-2">
+                  <p className="text-[10px] text-slate-500 font-medium">Zero branches configured. Add your first academic branch below!</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaultList = ["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"];
+                      setBranches(defaultList);
+                    }}
+                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 border border-blue-500/20 text-white text-[9px] font-bold rounded-lg transition shadow-sm hover:shadow cursor-pointer select-none"
+                  >
+                    ⚡ Populate Default Branches
+                  </button>
                 </div>
               )}
             </div>
