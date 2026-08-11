@@ -184,11 +184,15 @@ try {
     .run('State Institute of Technology', '2026-06-15');
 
   const defaultBranches = [
-    'Computer Science & Eng',
-    'Electrical & Electronics',
-    'Mechanical Engineering',
-    'Civil Engineering',
-    'Business & Humanities'
+    'CSE',
+    'CSE-AIDS',
+    'CSE-AIML',
+    'IT',
+    'MECH',
+    'CIVIL',
+    'CSE-CYBER',
+    'EEE',
+    'ECE'
   ];
   for (const name of defaultBranches) {
     db.prepare('INSERT OR IGNORE INTO branches (name) VALUES (?)').run(name);

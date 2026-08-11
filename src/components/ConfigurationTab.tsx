@@ -910,7 +910,7 @@ export default function ConfigurationTab({
                     className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
                   >
                     <option value="" className="bg-[#12151C] text-slate-400">-- Choose Branch / Department --</option>
-                    {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((b) => (
+                    {branches.map((b) => (
                       <option key={b} value={b} className="bg-[#12151C]">{b}</option>
                     ))}
                   </select>
@@ -960,7 +960,7 @@ export default function ConfigurationTab({
                       className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="all">📂 View All Branches</option>
-                      {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((b) => (
+                      {branches.map((b) => (
                         <option key={b} value={b}>{b}</option>
                       ))}
                     </select>
@@ -1308,15 +1308,9 @@ export default function ConfigurationTab({
                       onChange={(e) => setNewStudentBranch(e.target.value)}
                       className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer font-medium"
                     >
-                      <option value="CSE" className="bg-[#12151C]">CSE</option>
-                      <option value="CSE-AIDS" className="bg-[#12151C]">CSE-AIDS</option>
-                      <option value="CSE-AIML" className="bg-[#12151C]">CSE-AIML</option>
-                      <option value="IT" className="bg-[#12151C]">IT</option>
-                      <option value="MECH" className="bg-[#12151C]">MECH</option>
-                      <option value="CIVIL" className="bg-[#12151C]">CIVIL</option>
-                      <option value="CSE-CYBER" className="bg-[#12151C]">CSE-CYBER</option>
-                      <option value="EEE" className="bg-[#12151C]">EEE</option>
-                      <option value="ECE" className="bg-[#12151C]">ECE</option>
+                      {branches.map((b) => (
+                        <option key={b} value={b} className="bg-[#12151C]">{b}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -1466,7 +1460,7 @@ export default function ConfigurationTab({
                       className="px-2.5 py-1 bg-[#0A0C10] border border-slate-800 text-[11px] rounded-lg text-slate-300 font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="all">🎓 View All Branches</option>
-                      {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((branch) => (
+                      {branches.map((branch) => (
                         <option key={branch} value={branch}>
                           {branch}
                         </option>
@@ -1634,7 +1628,7 @@ export default function ConfigurationTab({
                       className="w-full px-3 py-2 text-xs border border-slate-700 bg-[#12151C] text-slate-200 rounded-lg focus:outline-none cursor-pointer"
                     >
                       <option value="" className="bg-[#12151C] text-slate-400">General Branch</option>
-                      {["CSE", "CSE-AIDS", "CSE-AIML", "IT", "MECH", "CIVIL", "CSE-CYBER", "EEE", "ECE"].map((b) => (
+                      {branches.map((b) => (
                         <option key={b} value={b} className="bg-[#12151C]">{b}</option>
                       ))}
                     </select>

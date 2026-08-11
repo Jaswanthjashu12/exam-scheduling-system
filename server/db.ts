@@ -279,15 +279,25 @@ export async function initDatabase(): Promise<void> {
       .run('State Institute of Technology', '2026-06-15');
   }
 
-  // Seed default branches if empty
+  // Seed default branches if empty or contains old defaults
   const branchCount = db.prepare('SELECT COUNT(*) as count FROM branches').get() as { count: number };
-  if (branchCount.count === 0) {
+  const hasOldBranch = db.prepare("SELECT COUNT(*) as count FROM branches WHERE name = 'Computer Science' OR name = 'Computer Science & Eng'").get() as { count: number };
+  
+  if (branchCount.count === 0 || hasOldBranch.count > 0) {
+    try {
+      db.prepare('DELETE FROM branches').run();
+    } catch (e) {}
+    
     const defaultBranches = [
-      'Computer Science',
-      'Electrical Engineering',
-      'Mechanical Engineering',
-      'Information Technology',
-      'Civil Engineering'
+      'CSE',
+      'CSE-AIDS',
+      'CSE-AIML',
+      'IT',
+      'MECH',
+      'CIVIL',
+      'CSE-CYBER',
+      'EEE',
+      'ECE'
     ];
     const insertBranch = db.prepare('INSERT INTO branches (name) VALUES (?)');
     db.transaction(() => {
