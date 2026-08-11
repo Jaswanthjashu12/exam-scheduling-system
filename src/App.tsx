@@ -38,11 +38,16 @@ import {
   HelpCircle,
   ShieldCheck,
   Eye,
-  Settings
+  Settings,
+  MoreVertical,
+  Menu
 } from "lucide-react";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "config" | "scheduler" | "seating" | "reports" | "copilot">("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem("exam_scheduler_sidebar_collapsed") === "true";
+  });
 
   // Auth state
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -378,21 +383,58 @@ export default function App() {
     <div className="min-h-screen bg-[#0A0C10] flex font-sans antialiased text-slate-300 print:bg-white print:text-black print:color-adjust-exact">
       
       {/* Dynamic Left Sidebar Rail Panel */}
-      <aside className="print:hidden w-68 shrink-0 bg-[#12151C] border-r border-slate-800 flex flex-col justify-between shadow-xl sticky top-0 h-screen hidden md:flex">
-        <div className="p-6 space-y-6">
+      <aside className={`print:hidden shrink-0 bg-[#12151C] border-r border-slate-800 flex flex-col justify-between shadow-xl sticky top-0 h-screen hidden md:flex transition-all duration-300 ease-in-out ${sidebarCollapsed ? "w-16" : "w-68"}`}>
+        <div className={`space-y-6 ${sidebarCollapsed ? "p-3 flex flex-col items-center" : "p-6"}`}>
           {/* Logo Brand Title */}
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 shrink-0">
-              <School className="w-5 h-5" />
+          {!sidebarCollapsed ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 shrink-0">
+                  <School className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-[10px] font-bold tracking-tight text-slate-500 uppercase">Exam Scheduler</h1>
+                  <p className="text-[12px] font-bold text-white truncate" title={collegeName}>{collegeName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSidebarCollapsed(true);
+                  localStorage.setItem("exam_scheduler_sidebar_collapsed", "true");
+                }}
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-450 hover:text-white cursor-pointer transition shrink-0 ml-1"
+                title="Collapse Sidebar"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-[10px] font-bold tracking-tight text-slate-500 uppercase">Exam Scheduler</h1>
-              <p className="text-[12px] font-bold text-white truncate" title={collegeName}>{collegeName}</p>
+          ) : (
+            <div className="flex flex-col items-center gap-3 w-full">
+              <button
+                onClick={() => {
+                  setSidebarCollapsed(false);
+                  localStorage.setItem("exam_scheduler_sidebar_collapsed", "false");
+                }}
+                className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 hover:bg-indigo-500/20 transition cursor-pointer"
+                title="Expand Sidebar"
+              >
+                <School className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => {
+                  setSidebarCollapsed(false);
+                  localStorage.setItem("exam_scheduler_sidebar_collapsed", "false");
+                }}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-450 hover:text-white cursor-pointer transition"
+                title="Expand Sidebar"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Navigation Items */}
-          <nav className="space-y-1 pt-2">
+          <nav className="space-y-1.5 pt-2 w-full">
             {[
               { id: "dashboard", label: "Overview Dashboard", icon: Grid },
               { id: "config", label: "Database Config", icon: Settings },
@@ -406,18 +448,21 @@ export default function App() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                  className={`w-full py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center transition cursor-pointer ${
+                    sidebarCollapsed ? "justify-center px-0" : "justify-between"
+                  } ${
                     activeTab === item.id
-                      ? "bg-slate-800 text-white border border-slate-700/60 shadow-sm"
+                      ? "bg-slate-800 text-white border border-slate-700/65 shadow-sm"
                       : "text-slate-400 hover:text-white hover:bg-slate-800/40"
                   }`}
+                  title={sidebarCollapsed ? item.label : undefined}
                 >
                   <span className="flex items-center gap-3">
-                    <Icon className="w-4 h-4" />
-                    {item.label}
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                   </span>
-                  {item.premium && (
-                    <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[8px] font-extrabold uppercase">AI</span>
+                  {!sidebarCollapsed && item.premium && (
+                    <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[8px] font-extrabold uppercase shrink-0">AI</span>
                   )}
                 </button>
               );
@@ -426,22 +471,40 @@ export default function App() {
         </div>
 
         {/* User profile footer info */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/40 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="space-y-0.5 min-w-0">
-              <p className="text-[11px] font-bold text-white truncate">{loggedInUser || "Administrator"}</p>
-              <p className="text-[10px] text-slate-500 truncate">{collegeName}</p>
+        {!sidebarCollapsed ? (
+          <div className="p-4 border-t border-slate-800 bg-slate-900/40 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-[11px] font-bold text-white truncate">{loggedInUser || "Administrator"}</p>
+                <p className="text-[10px] text-slate-500 truncate">{collegeName}</p>
+              </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#10b981]" title="Online" />
             </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#10b981]" title="Online" />
+            <button
+              onClick={handleLogout}
+              className="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-900/50 text-slate-400 hover:text-rose-400 text-[10px] font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" /></svg>
+              Sign Out
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-900/50 text-slate-400 hover:text-rose-400 text-[10px] font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" /></svg>
-            Sign Out
-          </button>
-        </div>
+        ) : (
+          <div className="p-3 border-t border-slate-800 bg-slate-900/40 flex flex-col items-center gap-3">
+            <div className="relative cursor-pointer" title={`${loggedInUser || "Administrator"}\n${collegeName}`}>
+              <div className="w-7 h-7 rounded-xl bg-indigo-650/20 border border-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-400 uppercase">
+                {(loggedInUser || "A")[0]}
+              </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -bottom-0.5 -right-0.5 border border-slate-900 shadow-[0_0_8px_#10b981]" />
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-900/50 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+              title="Sign Out"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" /></svg>
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Main Panel Frame */}
