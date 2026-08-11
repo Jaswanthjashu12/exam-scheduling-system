@@ -376,6 +376,37 @@ export function getConflictReport(
     }
   }
 
+  // Partition student enrollment counts for multi-room courses
+  const studentCountInRoomMap = new Map<string, number>();
+  for (const [slotId, slotList] of entriesBySlot.entries()) {
+    const courseEntriesMap = new Map<string, ScheduleEntry[]>();
+    for (const ent of slotList) {
+      const list = courseEntriesMap.get(ent.courseId) || [];
+      list.push(ent);
+      courseEntriesMap.set(ent.courseId, list);
+    }
+    for (const [cId, courseEntries] of courseEntriesMap.entries()) {
+      const courseStudents = getCourseEnrollment(cId, students, eIdx);
+      if (courseEntries.length === 1) {
+        studentCountInRoomMap.set(courseEntries[0].id, courseStudents.length);
+      } else {
+        const roomsWithCap = courseEntries.map(e => {
+          const r = roomMap.get(e.roomId);
+          return {
+            entryId: e.id,
+            capacity: r?.capacity || 30
+          };
+        });
+        let assigned = 0;
+        roomsWithCap.forEach(item => {
+          let share = Math.min(item.capacity, courseStudents.length - assigned);
+          studentCountInRoomMap.set(item.entryId, share);
+          assigned += share;
+        });
+      }
+    }
+  }
+
   // 1. HARD CONSTRAINT: Student conflicts (Two exams simultaneously)
   const studentsMap = new Map<string, string[]>(); // studentId -> timeslots assigned
   for (const student of students) {
@@ -420,12 +451,28 @@ export function getConflictReport(
     const accommodationNeedsInRoom = new Set<string>();
 
     for (const ent of activeEntries) {
-      const sEnrolled = getCourseEnrollment(ent.courseId, students, eIdx);
-      totalEnrolled += sEnrolled.length;
+      const count = studentCountInRoomMap.get(ent.id) || 0;
+      totalEnrolled += count;
       coursesInRoom.push(ent.courseId);
       
-      // Collect accommodation needs of enrolled students
-      sEnrolled.forEach((stu) => {
+      // Estimate accommodation needs of partitioned students in this room
+      const sEnrolled = getCourseEnrollment(ent.courseId, students, eIdx);
+      const slotList = entriesBySlot.get(ent.timeslotId) || [];
+      const courseEntries = slotList.filter(e => e.courseId === ent.courseId);
+      const roomsWithCap = courseEntries.map(e => {
+        const r = roomMap.get(e.roomId);
+        return {
+          entryId: e.id,
+          capacity: r?.capacity || 30
+        };
+      });
+      let offset = 0;
+      for (const item of roomsWithCap) {
+        if (item.entryId === ent.id) break;
+        offset += Math.min(item.capacity, sEnrolled.length - offset);
+      }
+      const roomStudents = sEnrolled.slice(offset, offset + count);
+      roomStudents.forEach((stu) => {
         stu.accommodations.forEach((acc) => accommodationNeedsInRoom.add(acc));
       });
     }
