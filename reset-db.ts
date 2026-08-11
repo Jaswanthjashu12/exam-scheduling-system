@@ -218,11 +218,11 @@ try {
   ];
 
   const invigilators = [
-    { id: "INV-101", name: "Dr. Elizabeth Vance", email: "elizabeth.vance@state.edu", department: "Science", maxWorkload: 3, availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning"] },
-    { id: "INV-102", name: "Prof. Marcus Brody", email: "marcus.brody@state.edu", department: "Linguistics", maxWorkload: 2, availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Afternoon", "Day-3-Afternoon"] },
-    { id: "INV-103", name: "Dr. Sarah Connor", email: "sarah.connor@state.edu", department: "Mathematics", maxWorkload: 4, availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon", "Day-3-Morning", "Day-3-Afternoon", "Day-3-Evening"] },
-    { id: "INV-104", name: "Dr. Henry Jones", email: "henry.jones@state.edu", department: "History", maxWorkload: 3, availability: ["Day-1-Evening", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning", "Day-3-Evening"] },
-    { id: "INV-105", name: "Prof. Rupert Giles", email: "rupert.giles@state.edu", department: "Humanities", maxWorkload: 3, availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-3-Afternoon", "Day-3-Evening"] },
+    { id: "INV-101", name: "Dr. Elizabeth Vance", email: "elizabeth.vance@state.edu", department: "CSE", maxWorkload: 3, availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning"] },
+    { id: "INV-102", name: "Prof. Marcus Brody", email: "marcus.brody@state.edu", department: "ECE", maxWorkload: 2, availability: ["Day-1-Morning", "Day-1-Evening", "Day-2-Afternoon", "Day-3-Afternoon"] },
+    { id: "INV-103", name: "Dr. Sarah Connor", email: "sarah.connor@state.edu", department: "EEE", maxWorkload: 4, availability: ["Day-1-Afternoon", "Day-2-Morning", "Day-2-Afternoon", "Day-3-Morning", "Day-3-Afternoon", "Day-3-Evening"] },
+    { id: "INV-104", name: "Dr. Henry Jones", email: "henry.jones@state.edu", department: "IT", maxWorkload: 3, availability: ["Day-1-Evening", "Day-2-Morning", "Day-2-Evening", "Day-3-Morning", "Day-3-Evening"] },
+    { id: "INV-105", name: "Prof. Rupert Giles", email: "rupert.giles@state.edu", department: "MECH", maxWorkload: 3, availability: ["Day-1-Morning", "Day-1-Afternoon", "Day-2-Morning", "Day-3-Afternoon", "Day-3-Evening"] },
   ];
 
   const generateStudents = () => {

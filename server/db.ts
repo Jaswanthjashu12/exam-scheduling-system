@@ -328,6 +328,13 @@ export async function initDatabase(): Promise<void> {
         db.prepare("UPDATE courses SET branch = 'MECH' WHERE branch LIKE '%Mechanical%'").run();
         db.prepare("UPDATE courses SET branch = 'CIVIL' WHERE branch LIKE '%Civil%'").run();
         db.prepare("UPDATE courses SET branch = 'ECE' WHERE branch LIKE '%Business%'").run();
+        
+        // Also update any existing invigilator departments to new codes
+        db.prepare("UPDATE invigilators SET department = 'CSE' WHERE department = 'Science'").run();
+        db.prepare("UPDATE invigilators SET department = 'ECE' WHERE department IN ('Linguistics', 'Arts')").run();
+        db.prepare("UPDATE invigilators SET department = 'EEE' WHERE department IN ('Mathematics', 'Physics')").run();
+        db.prepare("UPDATE invigilators SET department = 'IT' WHERE department = 'History'").run();
+        db.prepare("UPDATE invigilators SET department = 'MECH' WHERE department = 'Humanities'").run();
       })();
       console.log("[Database] Branches table migrated successfully to CSE/ECE/IT list");
     }
