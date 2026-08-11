@@ -134,10 +134,8 @@ export default function TicketsTab({
     setSelectedStudentIds(next);
   };
 
-  const handleDeselectAllVisible = () => {
-    const next = new Set(selectedStudentIds);
-    filteredStudents.forEach(s => next.delete(s.id));
-    setSelectedStudentIds(next);
+  const handleDeselectAll = () => {
+    setSelectedStudentIds(new Set());
   };
 
   // Helper: Trigger browser print
@@ -504,7 +502,7 @@ export default function TicketsTab({
             Select All Visible ({filteredStudents.length})
           </button>
           <button
-            onClick={handleDeselectAllVisible}
+            onClick={handleDeselectAll}
             className="px-3 py-1.5 bg-slate-800/40 hover:bg-slate-800 text-slate-300 rounded-lg text-[10px] font-semibold border border-slate-700/40 cursor-pointer select-none"
           >
             Deselect All
